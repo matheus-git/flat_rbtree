@@ -6,7 +6,7 @@ enum Color {
     Black,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Node<K, V> {
     key: K,
     value: V,
@@ -16,7 +16,7 @@ struct Node<K, V> {
     right: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RedBlackTree<K: Ord, V> {
     nodes: Vec<Node<K,V>>,
     free_indexes: Vec<usize>,
@@ -292,7 +292,7 @@ impl<K: Ord,V> RedBlackTree<K,V> {
 
         let mut y = z;
         let mut y_original_color = self.nodes[y].color;
-        let mut x: usize;
+        let x: usize;
 
         if self.nodes[z].left == SENTINEL {
             x = self.nodes[z].right;
@@ -423,43 +423,6 @@ impl<K: Ord,V> RedBlackTree<K,V> {
     fn is_red(&self, index: usize) -> bool {
         index != SENTINEL && self.nodes[index].color == Color::Red
     }
-}
-
-fn main() {
-    let mut tree = RedBlackTree::new();
-
-    tree.insert("A", 1);
-    tree.insert("B", 2);
-    tree.insert("C", 3);
-    tree.insert("D", 4);
-    tree.insert("E", 5);
-    tree.insert("F", 5);
-    tree.insert("G", 5);
-    tree.insert("H", 5);
-    tree.insert("I", 5);
-    tree.insert("J", 5);
-    tree.insert("K", 5);
-    tree.insert("L", 5);
-    tree.insert("M", 5);
-    tree.insert("N", 5);
-    tree.insert("O", 5);
-    tree.insert("P", 5);
-    tree.insert("Q", 5);
-    tree.insert("R", 5);
-    tree.insert("S", 5);
-    tree.insert("T", 5);
-    tree.insert("U", 5);
-    tree.insert("V", 5);
-    tree.insert("W", 5);
-    tree.insert("X", 5);
-    tree.insert("Y", 5);
-    tree.insert("Z", 5);
-
-    for (i, node) in tree.nodes.iter().enumerate() {
-        println!("{}: {:?}", i, node);
-    }
-
-    println!("Raiz: {}", tree.root);
 }
 
 #[cfg(test)]

@@ -7,6 +7,12 @@ edition = "2024"
 
 [dev-dependencies]
 rand="0.9.1"
-criterion = "0.5"
+criterion = "0.6.0"
 rbtree = "0.1.7"
 
+[profile.bench]
+debug = false
+
+[[bench]]
+name = "compare_rbtree"
+harness = false
