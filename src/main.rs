@@ -22,13 +22,32 @@ struct RedBlackTree<K: Ord, V> {
     root: usize
 }
 
-impl<K: Ord,V> RedBlackTree<K,V> {
+impl<K: Ord,V: Clone> RedBlackTree<K,V> {
     fn new() -> Self {
         Self {
             nodes: Vec::new(),
             free_indexes: Vec::new(),
             root: SENTINEL            
         }
+    }
+
+    fn search(&self, key: K) -> Option<V> {
+        if self.root == SENTINEL {
+            return None;
+        }
+        let mut x = self.root;
+        while key != self.nodes[x].key {
+            if key < self.nodes[x].key {
+                x = self.nodes[x].left;
+            }else {
+                x = self.nodes[x].right;
+            }
+            if x == SENTINEL {
+                return None;
+            }
+        }
+        let result = self.nodes[x].value.clone();
+        Some(result)
     }
 
     fn insert(&mut self, z: (K,V)){
@@ -192,4 +211,9 @@ fn main() {
     }
 
     println!("Raiz: {}", rbtree.root);
+
+    match rbtree.search("Laranjaa") {
+        Some(value) => println!("{}", value),
+        None => eprintln!("Não encontrado")
+    }
 }
