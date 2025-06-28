@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 const SENTINEL: usize = usize::MAX;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -50,7 +52,8 @@ impl<K: Ord,V> RedBlackTree<K,V> {
         let result = &self.nodes[x].value;
         Some(result)
     }
-
+    
+    #[inline(always)]
     pub fn insert(&mut self, key: K, value: V){
         let new_node = Node {
             key: key,

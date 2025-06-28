@@ -1,12 +1,15 @@
 use std::hint::black_box;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use rbtree::RBTree;
 use red_black_tree::RedBlackTree;
 
-const N: usize = 100_000;
+const N: usize = 1_000_000;
 
 fn bench_insert_custom(c: &mut Criterion) {
-    c.bench_function("Insert 100_000 - Custom RBTree", |b| {
+    let mut group = c.benchmark_group("Insert - Custom RBTree");
+    group.throughput(Throughput::Elements(N as u64));
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Insert 1_000_000 - Custom RBTree", |b| {
         b.iter(|| {
             let mut tree = RedBlackTree::new();
             for i in 0..N {
@@ -14,10 +17,14 @@ fn bench_insert_custom(c: &mut Criterion) {
             }
         });
     });
+    group.finish();
 }
 
 fn bench_insert_lib(c: &mut Criterion) {
-    c.bench_function("Insert 100_000 - rbtree crate", |b| {
+    let mut group = c.benchmark_group("Insert - rbtree crate");
+    group.throughput(Throughput::Elements(N as u64));
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Insert 1_000_000 - rbtree crate", |b| {
         b.iter(|| {
             let mut tree = RBTree::new();
             for i in 0..N {
@@ -25,6 +32,7 @@ fn bench_insert_lib(c: &mut Criterion) {
             }
         });
     });
+    group.finish();
 }
 
 fn bench_remove_custom(c: &mut Criterion) {
@@ -33,14 +41,16 @@ fn bench_remove_custom(c: &mut Criterion) {
         tree.insert(i, i);
     }
 
-    c.bench_function("Remove 100_000 - Custom RBTree", |b| {
+    let mut group = c.benchmark_group("Remove - Custom RBTree");
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Remove 1_000_000 - Custom RBTree", |b| {
         b.iter(|| {
-            let mut tree_clone = tree.clone();
             for i in 0..N {
-                tree_clone.remove(i);
+                tree.remove(i);
             }
         });
     });
+    group.finish();
 }
 
 fn bench_remove_lib(c: &mut Criterion) {
@@ -49,14 +59,16 @@ fn bench_remove_lib(c: &mut Criterion) {
         tree.insert(i, i);
     }
 
-    c.bench_function("Remove 100_000 - rbtree crate", |b| {
+    let mut group = c.benchmark_group("Remove - rbtree crate");
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Remove 1_000_000 - rbtree crate", |b| {
         b.iter(|| {
-            let mut tree_clone = tree.clone();
             for i in 0..N {
-                tree_clone.remove(&i);
+                tree.remove(&i);
             }
         });
     });
+    group.finish();
 }
 
 fn bench_search_custom(c: &mut Criterion) {
@@ -65,13 +77,16 @@ fn bench_search_custom(c: &mut Criterion) {
         tree.insert(i, i);
     }
 
-    c.bench_function("Search 100_000 - Custom RBTree", |b| {
+    let mut group = c.benchmark_group("Search - Custom RBTree");
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Search 1_000_000 - Custom RBTree", |b| {
         b.iter(|| {
             for i in 0..N {
                 black_box(tree.search(i));
             }
         });
     });
+    group.finish();
 }
 
 fn bench_search_lib(c: &mut Criterion) {
@@ -80,13 +95,16 @@ fn bench_search_lib(c: &mut Criterion) {
         tree.insert(i, i);
     }
 
-    c.bench_function("Search 100_000 - rbtree crate", |b| {
+    let mut group = c.benchmark_group("Search - rbtree crate");
+    group.sample_size(20).measurement_time(std::time::Duration::from_secs(10));
+    group.bench_function("Search 1_000_000 - rbtree crate", |b| {
         b.iter(|| {
             for i in 0..N {
                 black_box(tree.get(&i));
             }
         });
     });
+    group.finish();
 }
 
 criterion_group!(
