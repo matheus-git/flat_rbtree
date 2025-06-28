@@ -8,7 +8,7 @@ enum Color {
     Black,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct Node<K, V> {
     key: K,
     value: V,
@@ -19,13 +19,13 @@ struct Node<K, V> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RedBlackTree<K: Ord, V> {
-    nodes: Vec<Node<K,V>>,
+pub struct RedBlackTree<K: Ord + Copy, V: Copy> {
+    nodes: Vec<MaybeUninit<Node<K, V>>>,
     free_indexes: Vec<usize>,
     root: usize
 }
 
-impl<K: Ord,V> RedBlackTree<K,V> {
+impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -38,36 +38,41 @@ impl<K: Ord,V> RedBlackTree<K,V> {
         if self.root == SENTINEL {
             return None;
         }
+
         let mut x = self.root;
-        while key != self.nodes[x].key {
-            if key < self.nodes[x].key {
-                x = self.nodes[x].left;
-            }else {
-                x = self.nodes[x].right;
+        while x != SENTINEL {
+            let node = unsafe { self.nodes[x].assume_init_ref() };
+
+            if key == node.key {
+                return Some(&node.value);
             }
-            if x == SENTINEL {
-                return None;
-            }
+
+            x = if key < node.key {
+                node.left
+            } else {
+                node.right
+            };
         }
-        let result = &self.nodes[x].value;
-        Some(result)
+
+        None
     }
     
     #[inline(always)]
-    pub fn insert(&mut self, key: K, value: V){
+    pub fn insert(&mut self, key: K, value: V) {
         let new_node = Node {
-            key: key,
-            value: value,
+            key,
+            value,
             color: Color::Red,
             parent: SENTINEL,
             left: SENTINEL,
-            right: SENTINEL
+            right: SENTINEL,
         };
+
         let new_node_index = if let Some(free) = self.free_indexes.pop() {
-            self.nodes[free] = new_node;
+            self.nodes[free] = MaybeUninit::new(new_node);
             free
         } else {
-            self.nodes.push(new_node);
+            self.nodes.push(MaybeUninit::new(new_node));
             self.nodes.len() - 1
         };
 
@@ -76,22 +81,30 @@ impl<K: Ord,V> RedBlackTree<K,V> {
 
         while x != SENTINEL {
             y = x;
-            let y_node = &self.nodes[y];
-            if self.nodes[new_node_index].key < y_node.key {
+            let y_node = unsafe { self.nodes[y].assume_init_ref() };
+            let new_key = unsafe { &self.nodes[new_node_index].assume_init_ref().key };
+            if new_key < &y_node.key {
                 x = y_node.left;
-            }else{
+            } else {
                 x = y_node.right;
             }
         }
-        
-        self.nodes[new_node_index].parent = y;
-        
+
+        unsafe { self.nodes[new_node_index].assume_init_mut().parent = y };
+
         if y == SENTINEL {
             self.root = new_node_index;
-        } else if self.nodes[new_node_index].key < self.nodes[y].key {
-            self.nodes[y].left = new_node_index;
         } else {
-            self.nodes[y].right = new_node_index;
+            unsafe {
+                let new_key = &self.nodes[new_node_index].assume_init_ref().key;
+                let y_node = self.nodes[y].assume_init_mut();
+
+                if new_key < &y_node.key {
+                    y_node.left = new_node_index;
+                } else {
+                    y_node.right = new_node_index;
+                }
+            }
         }
 
         self.insert_fixup(new_node_index);
@@ -204,228 +217,228 @@ impl<K: Ord,V> RedBlackTree<K,V> {
         self.nodes[x].parent = y;
     }   
 
-    fn min(&self, mut x: usize) -> usize {
-        if x == SENTINEL {
-            return x
-        }
-        while self.nodes[x].left != SENTINEL {
-            x = self.nodes[x].left;
-        }
-        x
-    }
-
-    fn max(&self, mut x: usize) -> usize {
-        if x == SENTINEL {
-            return x
-        }
-        while self.nodes[x].right != SENTINEL {
-            x = self.nodes[x].right;
-        }
-        x
-    }
-
-    fn successor(&self, mut x: usize) -> usize {
-        if x == SENTINEL {
-            return x
-        }
-
-        if self.nodes[x].right != SENTINEL {
-            return self.min(self.nodes[x].right)
-        }
-        
-        let mut y = self.nodes[x].parent;
-
-        while y != SENTINEL && x == self.nodes[y].right {
-            x = y;
-            y = self.nodes[y].parent;
-        }
-        y
-    }
-
-    fn predecessor(&self, mut x: usize) -> usize {
-        if x == SENTINEL {
-            return x;
-        }
-
-        if self.nodes[x].left != SENTINEL {
-            return self.max(self.nodes[x].left);
-        }
-
-        let mut y = self.nodes[x].parent;
-
-        while y != SENTINEL && x == self.nodes[y].left {
-            x = y;
-            y = self.nodes[y].parent;
-        }
-
-        y
-    }
-
-    fn transplant(&mut self, u: usize, v: usize) {
-        if self.nodes[u].parent == SENTINEL {
-            self.root = v;
-        } else if u == self.nodes[self.nodes[u].parent].left {
-            let u_parent = self.nodes[u].parent;
-            self.nodes[u_parent].left = v;
-        } else {
-            let u_parent = self.nodes[u].parent;
-            self.nodes[u_parent].right = v;
-        }
-
-        if v != SENTINEL {
-            self.nodes[v].parent = self.nodes[u].parent;
-        }
-    }
-
-    pub fn remove(&mut self, key: K) {
-        let mut z = self.root;
-        while z != SENTINEL {
-            if key == self.nodes[z].key {
-                break;
-            } else if key < self.nodes[z].key {
-                z = self.nodes[z].left;
-            } else {
-                z = self.nodes[z].right;
-            }
-        }
-
-        if z == SENTINEL {
-            return;
-        }
-
-        let mut y = z;
-        let mut y_original_color = self.nodes[y].color;
-        let x: usize;
-
-        if self.nodes[z].left == SENTINEL {
-            x = self.nodes[z].right;
-            self.transplant(z, self.nodes[z].right);
-        } else if self.nodes[z].right == SENTINEL {
-            x = self.nodes[z].left;
-            self.transplant(z, self.nodes[z].left);
-        } else {
-            y = self.min(self.nodes[z].right);
-            y_original_color = self.nodes[y].color; 
-            x = self.nodes[y].right;
-            if y != self.nodes[z].right {
-                self.transplant(y, self.nodes[y].right);
-                self.nodes[y].right = self.nodes[z].right;
-                let y_right_child = self.nodes[y].right;
-                self.nodes[y_right_child].parent = y;
-            }
-
-            if x != SENTINEL {
-                self.nodes[x].parent = y;
-            }
-            self.transplant(z, y);
-            self.nodes[y].left = self.nodes[z].left;
-            let y_left_child = self.nodes[y].left;
-            self.nodes[y_left_child].parent = y;
-            self.nodes[y].color = self.nodes[z].color;
-        }
-
-        if y_original_color == Color::Black {
-            self.remove_fix(x);
-        }
-
-        self.free_indexes.push(z);
-    }
-
-    fn remove_fix(&mut self, mut x: usize) {
-        while x != self.root && x != SENTINEL && self.nodes[x].color == Color::Black {
-            let x_parent = self.nodes[x].parent;
-            if x == self.nodes[x_parent].left {
-                let mut cousin = self.nodes[x_parent].right;
-                if cousin == SENTINEL {
-                    x = x_parent;
-                    continue;
-                }
-                if self.is_red(cousin) {
-                    self.nodes[cousin].color = Color::Black;
-                    self.nodes[x_parent].color = Color::Red;
-                    self.rotate_left(x_parent);
-                    cousin = self.nodes[x_parent].right;
-                    if cousin == SENTINEL {
-                        x = x_parent;
-                        continue;
-                    }
-                }
-                
-                let cousin_left_child = self.nodes[cousin].left;
-                let mut cousin_right_child = self.nodes[cousin].right;
-                let left_black = cousin_left_child == SENTINEL || self.nodes[cousin_left_child].color == Color::Black;
-                let right_black = cousin_right_child == SENTINEL || self.nodes[cousin_right_child].color == Color::Black;
-
-                if left_black && right_black {
-                    self.nodes[cousin].color = Color::Red;
-                    x = x_parent
-                } else {
-                    if self.is_black(cousin_right_child) {
-                        self.nodes[cousin_left_child].color = Color::Black;
-                        self.nodes[cousin].color = Color::Red;
-                        self.rotate_right(cousin);
-                        cousin = self.nodes[x_parent].right;
-                        cousin_right_child = self.nodes[cousin].right;
-                    }
-                    self.nodes[cousin].color = self.nodes[x_parent].color;
-                    self.nodes[x_parent].color = Color::Black;
-                    self.nodes[cousin_right_child].color = Color::Black;
-                    self.rotate_left(x_parent);
-                    x = self.root;
-                }
-            }else {
-                let mut cousin = self.nodes[x_parent].left;
-                if cousin == SENTINEL {
-                    x = x_parent;
-                    continue;
-                }
-                if self.is_red(cousin) {
-                    self.nodes[cousin].color = Color::Black;
-                    self.nodes[x_parent].color = Color::Red;
-                    self.rotate_right(x_parent);
-                    cousin = self.nodes[x_parent].left;
-                    if cousin == SENTINEL {
-                        x = x_parent;
-                        continue;
-                    }
-                }
-                let mut cousin_left_child = self.nodes[cousin].left;
-                let cousin_right_child = self.nodes[cousin].right;
-                let left_black = cousin_left_child == SENTINEL || self.nodes[cousin_left_child].color == Color::Black;
-                let right_black = cousin_right_child == SENTINEL || self.nodes[cousin_right_child].color == Color::Black;
-
-                if left_black && right_black {
-                    self.nodes[cousin].color = Color::Red;
-                    x = x_parent
-                } else {
-                    if self.is_black(cousin_left_child) {
-                        self.nodes[cousin_right_child].color = Color::Black;
-                        self.nodes[cousin].color = Color::Red;
-                        self.rotate_left(cousin);
-                        cousin = self.nodes[x_parent].left;
-                        cousin_left_child = self.nodes[cousin].left;
-                    }
-                    self.nodes[cousin].color = self.nodes[x_parent].color;
-                    self.nodes[x_parent].color = Color::Black;
-                    self.nodes[cousin_left_child].color = Color::Black;
-                    self.rotate_right(x_parent);
-                    x = self.root;
-                }
-            }
-        }
-
-        if x != SENTINEL {
-            self.nodes[x].color = Color::Black;
-        }
-    }
-
-    fn is_black(&self, index: usize) -> bool {
-        index == SENTINEL || self.nodes[index].color == Color::Black
-    }
-
-    fn is_red(&self, index: usize) -> bool {
-        index != SENTINEL && self.nodes[index].color == Color::Red
-    }
+//    fn min(&self, mut x: usize) -> usize {
+//        if x == SENTINEL {
+//            return x
+//        }
+//        while self.nodes[x].left != SENTINEL {
+//            x = self.nodes[x].left;
+//        }
+//        x
+//    }
+//
+//    fn max(&self, mut x: usize) -> usize {
+//        if x == SENTINEL {
+//            return x
+//        }
+//        while self.nodes[x].right != SENTINEL {
+//            x = self.nodes[x].right;
+//        }
+//        x
+//    }
+//
+//    fn successor(&self, mut x: usize) -> usize {
+//        if x == SENTINEL {
+//            return x
+//        }
+//
+//        if self.nodes[x].right != SENTINEL {
+//            return self.min(self.nodes[x].right)
+//        }
+//        
+//        let mut y = self.nodes[x].parent;
+//
+//        while y != SENTINEL && x == self.nodes[y].right {
+//            x = y;
+//            y = self.nodes[y].parent;
+//        }
+//        y
+//    }
+//
+//    fn predecessor(&self, mut x: usize) -> usize {
+//        if x == SENTINEL {
+//            return x;
+//        }
+//
+//        if self.nodes[x].left != SENTINEL {
+//            return self.max(self.nodes[x].left);
+//        }
+//
+//        let mut y = self.nodes[x].parent;
+//
+//        while y != SENTINEL && x == self.nodes[y].left {
+//            x = y;
+//            y = self.nodes[y].parent;
+//        }
+//
+//        y
+//    }
+//
+//    fn transplant(&mut self, u: usize, v: usize) {
+//        if self.nodes[u].parent == SENTINEL {
+//            self.root = v;
+//        } else if u == self.nodes[self.nodes[u].parent].left {
+//            let u_parent = self.nodes[u].parent;
+//            self.nodes[u_parent].left = v;
+//        } else {
+//            let u_parent = self.nodes[u].parent;
+//            self.nodes[u_parent].right = v;
+//        }
+//
+//        if v != SENTINEL {
+//            self.nodes[v].parent = self.nodes[u].parent;
+//        }
+//    }
+//
+//    pub fn remove(&mut self, key: K) {
+//        let mut z = self.root;
+//        while z != SENTINEL {
+//            if key == self.nodes[z].key {
+//                break;
+//            } else if key < self.nodes[z].key {
+//                z = self.nodes[z].left;
+//            } else {
+//                z = self.nodes[z].right;
+//            }
+//        }
+//
+//        if z == SENTINEL {
+//            return;
+//        }
+//
+//        let mut y = z;
+//        let mut y_original_color = self.nodes[y].color;
+//        let x: usize;
+//
+//        if self.nodes[z].left == SENTINEL {
+//            x = self.nodes[z].right;
+//            self.transplant(z, self.nodes[z].right);
+//        } else if self.nodes[z].right == SENTINEL {
+//            x = self.nodes[z].left;
+//            self.transplant(z, self.nodes[z].left);
+//        } else {
+//            y = self.min(self.nodes[z].right);
+//            y_original_color = self.nodes[y].color; 
+//            x = self.nodes[y].right;
+//            if y != self.nodes[z].right {
+//                self.transplant(y, self.nodes[y].right);
+//                self.nodes[y].right = self.nodes[z].right;
+//                let y_right_child = self.nodes[y].right;
+//                self.nodes[y_right_child].parent = y;
+//            }
+//
+//            if x != SENTINEL {
+//                self.nodes[x].parent = y;
+//            }
+//            self.transplant(z, y);
+//            self.nodes[y].left = self.nodes[z].left;
+//            let y_left_child = self.nodes[y].left;
+//            self.nodes[y_left_child].parent = y;
+//            self.nodes[y].color = self.nodes[z].color;
+//        }
+//
+//        if y_original_color == Color::Black {
+//            self.remove_fix(x);
+//        }
+//
+//        self.free_indexes.push(z);
+//    }
+//
+//    fn remove_fix(&mut self, mut x: usize) {
+//        while x != self.root && x != SENTINEL && self.nodes[x].color == Color::Black {
+//            let x_parent = self.nodes[x].parent;
+//            if x == self.nodes[x_parent].left {
+//                let mut cousin = self.nodes[x_parent].right;
+//                if cousin == SENTINEL {
+//                    x = x_parent;
+//                    continue;
+//                }
+//                if self.is_red(cousin) {
+//                    self.nodes[cousin].color = Color::Black;
+//                    self.nodes[x_parent].color = Color::Red;
+//                    self.rotate_left(x_parent);
+//                    cousin = self.nodes[x_parent].right;
+//                    if cousin == SENTINEL {
+//                        x = x_parent;
+//                        continue;
+//                    }
+//                }
+//                
+//                let cousin_left_child = self.nodes[cousin].left;
+//                let mut cousin_right_child = self.nodes[cousin].right;
+//                let left_black = cousin_left_child == SENTINEL || self.nodes[cousin_left_child].color == Color::Black;
+//                let right_black = cousin_right_child == SENTINEL || self.nodes[cousin_right_child].color == Color::Black;
+//
+//                if left_black && right_black {
+//                    self.nodes[cousin].color = Color::Red;
+//                    x = x_parent
+//                } else {
+//                    if self.is_black(cousin_right_child) {
+//                        self.nodes[cousin_left_child].color = Color::Black;
+//                        self.nodes[cousin].color = Color::Red;
+//                        self.rotate_right(cousin);
+//                        cousin = self.nodes[x_parent].right;
+//                        cousin_right_child = self.nodes[cousin].right;
+//                    }
+//                    self.nodes[cousin].color = self.nodes[x_parent].color;
+//                    self.nodes[x_parent].color = Color::Black;
+//                    self.nodes[cousin_right_child].color = Color::Black;
+//                    self.rotate_left(x_parent);
+//                    x = self.root;
+//                }
+//            }else {
+//                let mut cousin = self.nodes[x_parent].left;
+//                if cousin == SENTINEL {
+//                    x = x_parent;
+//                    continue;
+//                }
+//                if self.is_red(cousin) {
+//                    self.nodes[cousin].color = Color::Black;
+//                    self.nodes[x_parent].color = Color::Red;
+//                    self.rotate_right(x_parent);
+//                    cousin = self.nodes[x_parent].left;
+//                    if cousin == SENTINEL {
+//                        x = x_parent;
+//                        continue;
+//                    }
+//                }
+//                let mut cousin_left_child = self.nodes[cousin].left;
+//                let cousin_right_child = self.nodes[cousin].right;
+//                let left_black = cousin_left_child == SENTINEL || self.nodes[cousin_left_child].color == Color::Black;
+//                let right_black = cousin_right_child == SENTINEL || self.nodes[cousin_right_child].color == Color::Black;
+//
+//                if left_black && right_black {
+//                    self.nodes[cousin].color = Color::Red;
+//                    x = x_parent
+//                } else {
+//                    if self.is_black(cousin_left_child) {
+//                        self.nodes[cousin_right_child].color = Color::Black;
+//                        self.nodes[cousin].color = Color::Red;
+//                        self.rotate_left(cousin);
+//                        cousin = self.nodes[x_parent].left;
+//                        cousin_left_child = self.nodes[cousin].left;
+//                    }
+//                    self.nodes[cousin].color = self.nodes[x_parent].color;
+//                    self.nodes[x_parent].color = Color::Black;
+//                    self.nodes[cousin_left_child].color = Color::Black;
+//                    self.rotate_right(x_parent);
+//                    x = self.root;
+//                }
+//            }
+//        }
+//
+//        if x != SENTINEL {
+//            self.nodes[x].color = Color::Black;
+//        }
+//    }
+//
+//    fn is_black(&self, index: usize) -> bool {
+//        index == SENTINEL || self.nodes[index].color == Color::Black
+//    }
+//
+//    fn is_red(&self, index: usize) -> bool {
+//        index != SENTINEL && self.nodes[index].color == Color::Red
+//    }
 }
 
 #[cfg(test)]
