@@ -74,52 +74,56 @@ impl<K: Ord,V> RedBlackTree<K,V> {
         self.insert_fixup(new_node_index);
     }
 
-fn insert_fixup(&mut self, mut z: usize) {
-    while self.nodes[z].parent != SENTINEL && self.nodes[self.nodes[z].parent].color == Color::Red {
-        let mut z_parent = self.nodes[z].parent;
-        let mut z_grand = self.nodes[z_parent].parent;
+    fn insert_fixup(&mut self, mut z: usize) {
+        while self.nodes[z].parent != SENTINEL && self.nodes[self.nodes[z].parent].color == Color::Red {
+            let mut z_parent = self.nodes[z].parent;
+            let mut z_grand = self.nodes[z_parent].parent;
 
-        if z_parent == self.nodes[z_grand].left {
-            let uncle = self.nodes[z_grand].right;
-            if uncle != SENTINEL && self.nodes[uncle].color == Color::Red {
-                self.nodes[z_parent].color = Color::Black;
-                self.nodes[uncle].color = Color::Black;
-                self.nodes[z_grand].color = Color::Red;
-                z = z_grand;
-            } else {
-                if z == self.nodes[z_parent].right {
-                    z = z_parent;
-                    z_parent = self.nodes[z].parent;
-                    z_grand = self.nodes[z_parent].parent;
-                    self.rotate_left(z);
+            if z_parent == self.nodes[z_grand].left {
+                let uncle = self.nodes[z_grand].right;
+                if uncle != SENTINEL && self.nodes[uncle].color == Color::Red {
+                    self.nodes[z_parent].color = Color::Black;
+                    self.nodes[uncle].color = Color::Black;
+                    self.nodes[z_grand].color = Color::Red;
+                    z = z_grand;
+                } else {
+                    if z == self.nodes[z_parent].right {
+                        z = z_parent;
+                        z_parent = self.nodes[z].parent;
+                        z_grand = self.nodes[z_parent].parent;
+                        self.rotate_left(z);
+                    }
+                    if z_grand != SENTINEL {
+                        self.nodes[z_parent].color = Color::Black;
+                        self.nodes[z_grand].color = Color::Red;
+                        self.rotate_right(z_grand);
+                    }
                 }
-                self.nodes[z_parent].color = Color::Black;
-                self.nodes[z_grand].color = Color::Red;
-                self.rotate_right(z_grand);
-            }
-        } else {
-            let uncle = self.nodes[z_grand].left;
-            if uncle != SENTINEL && self.nodes[uncle].color == Color::Red {
-                self.nodes[z_parent].color = Color::Black;
-                self.nodes[uncle].color = Color::Black;
-                self.nodes[z_grand].color = Color::Red;
-                z = z_grand;
             } else {
-                if z == self.nodes[z_parent].left {
-                    z = z_parent;
-                    z_parent = self.nodes[z].parent;
-                    z_grand = self.nodes[z_parent].parent;
-                    self.rotate_right(z);
+                let uncle = self.nodes[z_grand].left;
+                if uncle != SENTINEL && self.nodes[uncle].color == Color::Red {
+                    self.nodes[z_parent].color = Color::Black;
+                    self.nodes[uncle].color = Color::Black;
+                    self.nodes[z_grand].color = Color::Red;
+                    z = z_grand;
+                } else {
+                    if z == self.nodes[z_parent].left {
+                        z = z_parent;
+                        z_parent = self.nodes[z].parent;
+                        z_grand = self.nodes[z_parent].parent;
+                        self.rotate_right(z);
+                    }
+                    if z_grand != SENTINEL {
+                        self.nodes[z_parent].color = Color::Black;
+                        self.nodes[z_grand].color = Color::Red;
+                        self.rotate_left(z_grand);
+                    }
                 }
-                self.nodes[z_parent].color = Color::Black;
-                self.nodes[z_grand].color = Color::Red;
-                self.rotate_left(z_grand);
             }
         }
-    }
 
-    self.nodes[self.root].color = Color::Black;
-}
+        self.nodes[self.root].color = Color::Black;
+    }
 
     fn rotate_left(&mut self, x: usize){
         let y = self.nodes[x].right;
@@ -179,6 +183,9 @@ fn main() {
     rbtree.insert(("Árvore", 3));
     rbtree.insert(("Zebra", 4));
     rbtree.insert(("Laranja", 5));
+    rbtree.insert(("Laranja2", 5));
+    rbtree.insert(("Laranja3", 5));
+    rbtree.insert(("Laranja4", 5));
 
     for (i, node) in rbtree.nodes.iter().enumerate() {
         println!("{}: {:?}", i, node);
