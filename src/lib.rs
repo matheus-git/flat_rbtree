@@ -1,4 +1,13 @@
-use std::mem::MaybeUninit;
+#![allow(warnings)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
+use core::mem::MaybeUninit;
 
 const SENTINEL: usize = usize::MAX;
 
@@ -517,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_search() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str>::new();
         tree.insert(10, "A");
         tree.insert(20, "B");
         tree.insert(5, "C");
