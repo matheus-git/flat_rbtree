@@ -176,6 +176,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "flat_rbtree"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "rand",
+ "rbtree",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -385,15 +394,6 @@ name = "rbtree"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c1fc4322c9cbb8b2e2ea470f7b047a2c0ba1e504f5332c94987c5ebfe6c6c5a"
-
-[[package]]
-name = "red_black_tree"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "rand",
- "rbtree",
-]
 
 [[package]]
 name = "regex"

@@ -1,7 +1,14 @@
 [package]
-name = "red_black_tree"
+name = "flat_rbtree"
 version = "0.1.0"
 edition = "2024"
+authors = ["Matheus-git <mathiew0@gmail.com>"]
+description = "A flat, index-based Red-Black Tree with no heap allocations. Ideal for performance-critical or memory-constrained environments."
+license = "MIT"
+repository = "https://github.com/matheus-git/flat_rbtree"
+readme = "README.md"
+keywords = ["rbtree", "red-black tree", "no-alloc", "index", "flat"]
+categories = ["data-structures", "embedded", "no-std"]
 
 [dependencies]
 

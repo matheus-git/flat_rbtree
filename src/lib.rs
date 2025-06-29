@@ -322,167 +322,167 @@ impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
     }
 
     #[inline(always)]
-pub fn remove(&mut self, key: K) {
-    let mut z = self.root;
+    pub fn remove(&mut self, key: K) {
+        let mut z = self.root;
 
-    while z != SENTINEL {
-        let node = self.get_node_by_index(z);
-        if key == node.key {
-            break;
-        } else if key < node.key {
-            z = node.left;
-        } else {
-            z = node.right;
+        while z != SENTINEL {
+            let node = self.get_node_by_index(z);
+            if key == node.key {
+                break;
+            } else if key < node.key {
+                z = node.left;
+            } else {
+                z = node.right;
+            }
         }
-    }
 
-    if z == SENTINEL {
-        return;
-    }
+        if z == SENTINEL {
+            return;
+        }
 
-    let mut y = z;
-    let x;
-    let y_original_color;
+        let mut y = z;
+        let x;
+        let y_original_color;
 
-    let (z_left, z_right, z_color) = {
-        let z_node = self.get_node_by_index(z);
-        (z_node.left, z_node.right, z_node.color)
-    };
-
-    if z_left == SENTINEL {
-        x = z_right;
-        y_original_color = z_color;
-        self.transplant(z, z_right);
-    } else if z_right == SENTINEL {
-        x = z_left;
-        y_original_color = z_color;
-        self.transplant(z, z_left);
-    } else {
-        y = self.min(z_right);
-        let (y_right, y_color) = {
-            let y_node = self.get_node_by_index(y);
-            (y_node.right, y_node.color)
+        let (z_left, z_right, z_color) = {
+            let z_node = self.get_node_by_index(z);
+            (z_node.left, z_node.right, z_node.color)
         };
-        x = y_right;
-        y_original_color = y_color;
 
-        if y != z_right {
-            self.transplant(y, y_right);
-            self.get_mut_node_by_index(y).right = z_right;
-            self.get_mut_node_by_index(z_right).parent = y;
+        if z_left == SENTINEL {
+            x = z_right;
+            y_original_color = z_color;
+            self.transplant(z, z_right);
+        } else if z_right == SENTINEL {
+            x = z_left;
+            y_original_color = z_color;
+            self.transplant(z, z_left);
+        } else {
+            y = self.min(z_right);
+            let (y_right, y_color) = {
+                let y_node = self.get_node_by_index(y);
+                (y_node.right, y_node.color)
+            };
+            x = y_right;
+            y_original_color = y_color;
+
+            if y != z_right {
+                self.transplant(y, y_right);
+                self.get_mut_node_by_index(y).right = z_right;
+                self.get_mut_node_by_index(z_right).parent = y;
+            }
+
+            if x != SENTINEL {
+                self.get_mut_node_by_index(x).parent = y;
+            }
+
+            self.transplant(z, y);
+            self.get_mut_node_by_index(y).left = z_left;
+            self.get_mut_node_by_index(z_left).parent = y;
+            self.get_mut_node_by_index(y).color = z_color;
         }
 
-        if x != SENTINEL {
-            self.get_mut_node_by_index(x).parent = y;
+        if y_original_color == Color::Black {
+            self.remove_fix(x);
         }
 
-        self.transplant(z, y);
-        self.get_mut_node_by_index(y).left = z_left;
-        self.get_mut_node_by_index(z_left).parent = y;
-        self.get_mut_node_by_index(y).color = z_color;
+        self.free_indexes.push(z);
     }
-
-    if y_original_color == Color::Black {
-        self.remove_fix(x);
-    }
-
-    self.free_indexes.push(z);
-}
 
     #[inline(always)]
     fn remove_fix(&mut self, mut x: usize) {
-    while x != self.root && x != SENTINEL && self.is_black(x) {
-        let x_parent = self.get_node_by_index(x).parent;
+        while x != self.root && x != SENTINEL && self.is_black(x) {
+            let x_parent = self.get_node_by_index(x).parent;
 
-        let (mut cousin, is_left) = {
-            let x_is_left = x == self.get_node_by_index(x_parent).left;
-            let c = if x_is_left {
-                self.get_node_by_index(x_parent).right
-            } else {
-                self.get_node_by_index(x_parent).left
+            let (mut cousin, is_left) = {
+                let x_is_left = x == self.get_node_by_index(x_parent).left;
+                let c = if x_is_left {
+                    self.get_node_by_index(x_parent).right
+                } else {
+                    self.get_node_by_index(x_parent).left
+                };
+                (c, x_is_left)
             };
-            (c, x_is_left)
-        };
-
-        if cousin == SENTINEL {
-            x = x_parent;
-            continue;
-        }
-
-        if self.is_red(cousin) {
-            self.get_mut_node_by_index(cousin).color = Color::Black;
-            self.get_mut_node_by_index(x_parent).color = Color::Red;
-
-            if is_left {
-                self.rotate_left(x_parent);
-                cousin = self.get_node_by_index(x_parent).right;
-            } else {
-                self.rotate_right(x_parent);
-                cousin = self.get_node_by_index(x_parent).left;
-            }
 
             if cousin == SENTINEL {
                 x = x_parent;
                 continue;
             }
-        }
 
-        let (mut c_left, mut c_right) = {
-            let c_node = self.get_node_by_index(cousin);
-            (c_node.left, c_node.right)
-        };
+            if self.is_red(cousin) {
+                self.get_mut_node_by_index(cousin).color = Color::Black;
+                self.get_mut_node_by_index(x_parent).color = Color::Red;
 
-        let left_black = c_left == SENTINEL || self.is_black(c_left);
-        let right_black = c_right == SENTINEL || self.is_black(c_right);
-
-        if left_black && right_black {
-            self.get_mut_node_by_index(cousin).color = Color::Red;
-            x = x_parent;
-        } else {
-            if is_left {
-                if self.is_black(c_right) {
-                    if c_left != SENTINEL {
-                        self.get_mut_node_by_index(c_left).color = Color::Black;
-                    }
-                    self.get_mut_node_by_index(cousin).color = Color::Red;
-                    self.rotate_right(cousin);
+                if is_left {
+                    self.rotate_left(x_parent);
                     cousin = self.get_node_by_index(x_parent).right;
-                    c_right = self.get_node_by_index(cousin).right;
+                } else {
+                    self.rotate_right(x_parent);
+                    cousin = self.get_node_by_index(x_parent).left;
                 }
 
-                self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
-                self.get_mut_node_by_index(x_parent).color = Color::Black;
-                if c_right != SENTINEL {
-                    self.get_mut_node_by_index(c_right).color = Color::Black;
+                if cousin == SENTINEL {
+                    x = x_parent;
+                    continue;
                 }
-                self.rotate_left(x_parent);
+            }
+
+            let (mut c_left, mut c_right) = {
+                let c_node = self.get_node_by_index(cousin);
+                (c_node.left, c_node.right)
+            };
+
+            let left_black = c_left == SENTINEL || self.is_black(c_left);
+            let right_black = c_right == SENTINEL || self.is_black(c_right);
+
+            if left_black && right_black {
+                self.get_mut_node_by_index(cousin).color = Color::Red;
+                x = x_parent;
             } else {
-                if self.is_black(c_left) {
+                if is_left {
+                    if self.is_black(c_right) {
+                        if c_left != SENTINEL {
+                            self.get_mut_node_by_index(c_left).color = Color::Black;
+                        }
+                        self.get_mut_node_by_index(cousin).color = Color::Red;
+                        self.rotate_right(cousin);
+                        cousin = self.get_node_by_index(x_parent).right;
+                        c_right = self.get_node_by_index(cousin).right;
+                    }
+
+                    self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
+                    self.get_mut_node_by_index(x_parent).color = Color::Black;
                     if c_right != SENTINEL {
                         self.get_mut_node_by_index(c_right).color = Color::Black;
                     }
-                    self.get_mut_node_by_index(cousin).color = Color::Red;
-                    self.rotate_left(cousin);
-                    cousin = self.get_node_by_index(x_parent).left;
-                    c_left = self.get_node_by_index(cousin).left;
+                    self.rotate_left(x_parent);
+                } else {
+                    if self.is_black(c_left) {
+                        if c_right != SENTINEL {
+                            self.get_mut_node_by_index(c_right).color = Color::Black;
+                        }
+                        self.get_mut_node_by_index(cousin).color = Color::Red;
+                        self.rotate_left(cousin);
+                        cousin = self.get_node_by_index(x_parent).left;
+                        c_left = self.get_node_by_index(cousin).left;
+                    }
+
+                    self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
+                    self.get_mut_node_by_index(x_parent).color = Color::Black;
+                    if c_left != SENTINEL {
+                        self.get_mut_node_by_index(c_left).color = Color::Black;
+                    }
+                    self.rotate_right(x_parent);
                 }
 
-                self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
-                self.get_mut_node_by_index(x_parent).color = Color::Black;
-                if c_left != SENTINEL {
-                    self.get_mut_node_by_index(c_left).color = Color::Black;
-                }
-                self.rotate_right(x_parent);
+                x = self.root;
             }
+        }
 
-            x = self.root;
+        if x != SENTINEL {
+            self.get_mut_node_by_index(x).color = Color::Black;
         }
     }
-
-    if x != SENTINEL {
-        self.get_mut_node_by_index(x).color = Color::Black;
-    }
-}
 
     #[inline(always)]
     fn is_black(&self, index: usize) -> bool {
