@@ -13,11 +13,11 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 ## Usage
 
 ```rust
-let mut tree = RedBlackTree::new();
-tree.insert(10, "A");
-tree.update(10, "B");
-tree.search(10); // Some(&"B")
-tree.remove(10);
+let mut tree = RedBlackTree::<&str, i32, 1>::new();
+tree.insert("A", 1);
+tree.update("A", 2);
+tree.search("A"); // Some(&2)
+tree.remove("A");
 ```
 
 ## Benchmark: flat_rbtree vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
