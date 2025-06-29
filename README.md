@@ -24,8 +24,8 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 ```rust
 let mut tree = RedBlackTree::new();
 tree.insert(10, "A");
-tree.search(10) // Some(&"A")
-tree.remove(10)
+tree.search(10); // Some(&"A")
+tree.remove(10);
 ```
 ## Optional no_std Support
 
