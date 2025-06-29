@@ -11,7 +11,7 @@ enum Color {
     Black,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 struct Node<K, V> {
     key: K,
     value: V,
@@ -21,15 +21,15 @@ struct Node<K, V> {
     right: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct RedBlackTree<K: Ord + Copy, V: Copy, const N: usize> {
+#[derive(Debug)]
+pub struct RedBlackTree<K: Ord, V, const N: usize> {
     nodes: [MaybeUninit<Node<K, V>>; N],
     free_indexes: [usize;N],
     free_len: usize,
     root: usize
 }
 
-impl<K: Ord + Copy, V: Copy, const N: usize> RedBlackTree<K,V,N> {
+impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     pub fn new() -> Self {
         let mut free_indexes = [0; N];
         for (i, v) in (0..N).rev().enumerate() {
@@ -89,14 +89,15 @@ impl<K: Ord + Copy, V: Copy, const N: usize> RedBlackTree<K,V,N> {
 
         let mut x = self.root;
         let mut y = SENTINEL;
-        let new_key = self.get_node_by_index(new_node_index).key;
+        let new_node = self.get_node_by_index(new_node_index);
+        let new_key = &new_node.key;
         
         while x != SENTINEL {
             y = x;
 
             let y_node = self.get_node_by_index(y);
             
-            if new_key < y_node.key {
+            if new_key < &y_node.key {
                 x = y_node.left;
             } else {
                 x = y_node.right;
@@ -108,12 +109,10 @@ impl<K: Ord + Copy, V: Copy, const N: usize> RedBlackTree<K,V,N> {
         if y == SENTINEL {
             self.root = new_node_index;
         } else {
-            let y_node = self.get_mut_node_by_index(y);
-
-            if key < y_node.key {
-                y_node.left = new_node_index;
+            if self.get_node_by_index(new_node_index).key < self.get_node_by_index(y).key {
+                self.get_mut_node_by_index(y).left = new_node_index;
             } else {
-                y_node.right = new_node_index;
+                self.get_mut_node_by_index(y).right = new_node_index;
             }
         }
 
@@ -641,7 +640,7 @@ mod tests {
 
         let root = tree.root;
         unsafe {
-            assert_eq!(tree.nodes[root].assume_init().color, Color::Black);
+            assert_eq!(tree.nodes[root].assume_init_ref().color, Color::Black);
         }
     }
 
@@ -661,6 +660,7 @@ mod tests {
         assert_eq!(tree.search(60), Some(&60));
         assert_eq!(tree.search(80), Some(&80));
     }
+
     #[test]
     fn test_random_insertion_and_removal() {
         use rand::{Rng, SeedableRng};
@@ -676,7 +676,6 @@ mod tests {
         }
 
         keys.shuffle(&mut rng);
-
         let mut tree = RedBlackTree::<usize, usize, COUNT>::new();
 
         for &k in &keys {
@@ -725,12 +724,12 @@ mod tests {
                     return Some(1);
                 }
                 let node = &tree.nodes[node_idx];
-                let left = count_black_height(tree, node.assume_init().left)?;
-                let right = count_black_height(tree, node.assume_init().right)?;
+                let left = count_black_height(tree, node.assume_init_ref().left)?;
+                let right = count_black_height(tree, node.assume_init_ref().right)?;
                 if left != right {
                     return None;
                 }
-                let is_black = node.assume_init().color == Color::Black;
+                let is_black = node.assume_init_ref().color == Color::Black;
                 Some(left + if is_black { 1 } else { 0 })
             }
         }
@@ -742,7 +741,7 @@ mod tests {
 
         assert_ne!(tree.root, SENTINEL);
         unsafe {
-            assert_eq!(tree.nodes[tree.root].assume_init().color, Color::Black);
+            assert_eq!(tree.nodes[tree.root].assume_init_ref().color, Color::Black);
         }
 
         fn validate(tree: &RedBlackTree<i32, i32, 10_000>, idx: usize) -> bool {
@@ -751,15 +750,18 @@ mod tests {
                     return true;
                 }
                 let node = &tree.nodes[idx];
-                if node.assume_init().color == Color::Red {
-                    if node.assume_init().left != SENTINEL && tree.nodes[node.assume_init().left].assume_init().color == Color::Red {
+                if node.assume_init_ref().color == Color::Red {
+                    if node.assume_init_ref().left != SENTINEL &&
+                        tree.nodes[node.assume_init_ref().left].assume_init_ref().color == Color::Red {
                         return false;
                     }
-                    if node.assume_init().right != SENTINEL && tree.nodes[node.assume_init().right].assume_init().color == Color::Red {
+                    if node.assume_init_ref().right != SENTINEL &&
+                        tree.nodes[node.assume_init_ref().right].assume_init_ref().color == Color::Red {
                         return false;
                     }
                 }
-                validate(tree, node.assume_init().left) && validate(tree, node.assume_init().right)
+                validate(tree, node.assume_init_ref().left) &&
+                validate(tree, node.assume_init_ref().right)
             }
         }
 
