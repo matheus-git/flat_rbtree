@@ -27,6 +27,14 @@ tree.insert(10, "A");
 tree.search(10) // Some(&"A")
 tree.remove(10)
 ```
+## Optional no_std Support
+
+```toml
+[dependencies.flat_rbtree]
+version = "0.1"
+default-features = false
+features = ["alloc"]
+```
 
 ## 📝 License
 
