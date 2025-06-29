@@ -1,11 +1,5 @@
 #![allow(warnings)]
-#![cfg_attr(not(feature = "std"), no_std)]
-
-#[cfg(not(feature = "std"))]
-extern crate alloc;
-
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+#![no_std]
 
 use core::mem::MaybeUninit;
 
@@ -28,18 +22,25 @@ struct Node<K, V> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RedBlackTree<K: Ord + Copy, V: Copy> {
-    nodes: Vec<MaybeUninit<Node<K, V>>>,
-    free_indexes: Vec<usize>,
+pub struct RedBlackTree<K: Ord + Copy, V: Copy, const N: usize> {
+    nodes: [MaybeUninit<Node<K, V>>; N],
+    free_indexes: [usize;N],
+    free_len: usize,
     root: usize
 }
 
-impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
+impl<K: Ord + Copy, V: Copy, const N: usize> RedBlackTree<K,V,N> {
     pub fn new() -> Self {
+        let mut free_indexes = [0; N];
+        for (i, v) in (0..N).rev().enumerate() {
+            free_indexes[i] = v;
+        }
+
         Self {
-            nodes: Vec::new(),
-            free_indexes: Vec::new(),
-            root: SENTINEL            
+            nodes: unsafe { MaybeUninit::uninit().assume_init() },
+            free_indexes,
+            free_len: N,
+            root: SENTINEL,
         }
     }
 
@@ -50,7 +51,7 @@ impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
 
         let mut x = self.root;
         while x != SENTINEL {
-            let node = unsafe { self.nodes[x].assume_init_ref() };
+            let node = self.get_node_by_index(x);
 
             if key == node.key {
                 return Some(&node.value);
@@ -77,12 +78,13 @@ impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
             right: SENTINEL,
         };
 
-        let new_node_index = if let Some(free) = self.free_indexes.pop() {
-            self.nodes[free] = MaybeUninit::new(new_node);
-            free
+        let new_node_index = if self.free_len > 0 {
+            self.free_len -= 1;
+            let index = self.free_indexes[self.free_len];
+            self.nodes[index] = MaybeUninit::new(new_node);
+            index
         } else {
-            self.nodes.push(MaybeUninit::new(new_node));
-            self.nodes.len() - 1
+            panic!("RedBlackTree is full. Consider increasing N.");
         };
 
         let mut x = self.root;
@@ -417,7 +419,8 @@ impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
             self.remove_fix(x);
         }
 
-        self.free_indexes.push(z);
+        self.free_indexes[self.free_len] = z;
+        self.free_len += 1;
     }
 
     #[inline(always)]
@@ -548,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_search() {
-        let mut tree = RedBlackTree::<i32, &str>::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(10, "A");
         tree.insert(20, "B");
         tree.insert(5, "C");
@@ -561,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_remove_leaf_node() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(10, "A");
         tree.insert(5, "B");
         tree.insert(15, "C");
@@ -574,10 +577,10 @@ mod tests {
 
     #[test]
     fn test_remove_node_with_one_child() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(10, "A");
         tree.insert(5, "B");
-        tree.insert(2, "C"); // left child of 5
+        tree.insert(2, "C");
 
         tree.remove(5);
         assert_eq!(tree.search(5), None);
@@ -586,7 +589,7 @@ mod tests {
 
     #[test]
     fn test_remove_node_with_two_children() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(10, "A");
         tree.insert(5, "B");
         tree.insert(15, "C");
@@ -601,7 +604,7 @@ mod tests {
 
     #[test]
     fn test_reinsert_removed_key() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(42, "X");
         assert_eq!(tree.search(42), Some(&"X"));
 
@@ -614,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_multiple_insert_remove() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, i32, 100>::new();
         for i in 0..100 {
             tree.insert(i, i * 10);
         }
@@ -631,7 +634,7 @@ mod tests {
 
     #[test]
     fn test_root_is_black() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, i32, 10>::new();
         for i in [10, 20, 30, 5, 15] {
             tree.insert(i, i);
         }
@@ -644,7 +647,7 @@ mod tests {
 
     #[test]
     fn test_balanced_after_removal() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, i32, 10>::new();
         for &k in &[50, 30, 70, 20, 40, 60, 80] {
             tree.insert(k, k);
         }
@@ -658,21 +661,55 @@ mod tests {
         assert_eq!(tree.search(60), Some(&60));
         assert_eq!(tree.search(80), Some(&80));
     }
+    #[test]
+    fn test_random_insertion_and_removal() {
+        use rand::{Rng, SeedableRng};
+        use rand::rngs::SmallRng;
+        use rand::prelude::SliceRandom;
+
+        const COUNT: usize = 60;
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut keys = [0usize; COUNT];
+        for i in 0..COUNT {
+            keys[i] = i;
+        }
+
+        keys.shuffle(&mut rng);
+
+        let mut tree = RedBlackTree::<usize, usize, COUNT>::new();
+
+        for &k in &keys {
+            tree.insert(k, k + 123);
+        }
+
+        for &k in &keys {
+            assert_eq!(tree.search(k), Some(&(k + 123)));
+        }
+
+        keys.shuffle(&mut rng);
+        for &k in &keys {
+            tree.remove(k);
+            assert_eq!(tree.search(k), None);
+        }
+
+        assert_eq!(tree.root, SENTINEL);
+    }
 
     #[test]
     fn test_large_insertion_and_removal() {
-        let mut tree = RedBlackTree::new();
-        let count = 100_000;
+        const COUNT: usize = 1_000;
+        let mut tree = RedBlackTree::<usize, usize, COUNT>::new();
 
-        for i in 0..count {
+        for i in 0..COUNT {
             tree.insert(i, i);
         }
 
-        for i in 0..count {
+        for i in 0..COUNT {
             assert_eq!(tree.search(i), Some(&i));
         }
 
-        for i in 0..count {
+        for i in 0..COUNT {
             tree.remove(i);
             assert_eq!(tree.search(i), None);
         }
@@ -682,7 +719,7 @@ mod tests {
 
     #[test]
     fn test_invariant_red_black_properties() {
-        fn count_black_height(tree: &RedBlackTree<i32, i32>, node_idx: usize) -> Option<usize> {
+        fn count_black_height(tree: &RedBlackTree<i32, i32, 10_000>, node_idx: usize) -> Option<usize> {
             unsafe {
                 if node_idx == SENTINEL {
                     return Some(1);
@@ -698,7 +735,7 @@ mod tests {
             }
         }
 
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, i32, 10_000>::new();
         for i in 0..10_000 {
             tree.insert(i, i);
         }
@@ -708,7 +745,7 @@ mod tests {
             assert_eq!(tree.nodes[tree.root].assume_init().color, Color::Black);
         }
 
-        fn validate(tree: &RedBlackTree<i32, i32>, idx: usize) -> bool {
+        fn validate(tree: &RedBlackTree<i32, i32, 10_000>, idx: usize) -> bool {
             unsafe {
                 if idx == SENTINEL {
                     return true;
@@ -732,7 +769,7 @@ mod tests {
 
     #[test]
     fn test_descending_inserts_then_remove_half() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, i32, 10_000>::new();
 
         for i in (0..10_000).rev() {
             tree.insert(i, i);
@@ -750,7 +787,7 @@ mod tests {
 
     #[test]
     fn test_update_behavior() {
-        let mut tree = RedBlackTree::new();
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
 
         tree.update(42, "original");
         assert_eq!(tree.search(42), Some(&"original"));

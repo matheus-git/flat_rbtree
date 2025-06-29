@@ -8,24 +8,16 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 
 - **Flat storage**: all nodes are stored in a `Vec`, avoiding pointer indirection.
 - **No allocations per node**: avoids `Box`, `Rc`, or `Arc`.
-- **No-std friendly** *(optional)*: suitable for embedded environments.
+- **No-std friendly**: suitable for embedded environments.
 
 ## Usage
 
 ```rust
 let mut tree = RedBlackTree::new();
 tree.insert(10, "A");
-tree.search(10); // Some(&"A")
+tree.update(10, "B");
+tree.search(10); // Some(&"B")
 tree.remove(10);
-```
-## Optional no_std Support
-
-```toml
-[dependencies.flat_rbtree]
-version = "0.1"
-default-features = false
-features = ["alloc"]
-```
 
 ## 📝 License
 
