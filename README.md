@@ -18,6 +18,17 @@ tree.insert(10, "A");
 tree.update(10, "B");
 tree.search(10); // Some(&"B")
 tree.remove(10);
+```
+
+## Benchmark: flat_rbtree vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
+
+| Operation | flat_rbtree | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
+|-----------|----------------|---------------|
+| **Insert** | 1.93 ms (avg)   | 3.02 ms (avg)  | 
+| **Remove** | 2.49 ns         | 0.41 ns        | 
+| **Search** | 1.08 ms         | 0.88 ms        | 
+
+> Results may vary depending on hardware and runtime conditions.
 
 ## 📝 License
 
