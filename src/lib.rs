@@ -119,6 +119,28 @@ impl<K: Ord + Copy, V: Copy> RedBlackTree<K,V> {
     }
 
     #[inline(always)]
+    pub fn update(&mut self, key: K, value: V) {
+        let mut z = self.root;
+
+        while z != SENTINEL {
+            let node = self.get_node_by_index(z);
+            if key == node.key {
+                break;
+            } else if key < node.key {
+                z = node.left;
+            } else {
+                z = node.right;
+            }
+        }
+
+        if z == SENTINEL {
+            return self.insert(key, value);
+        }
+
+        self.get_mut_node_by_index(z).value = value;
+    }
+
+    #[inline(always)]
     fn insert_fixup(&mut self, mut z: usize) {
         while z != SENTINEL
             && self.get_node_by_index(z).parent != SENTINEL
@@ -724,5 +746,18 @@ mod tests {
         for i in 5_000..10_000 {
             assert_eq!(tree.search(i), Some(&i));
         }
+    }
+
+    #[test]
+    fn test_update_behavior() {
+        let mut tree = RedBlackTree::new();
+
+        tree.update(42, "original");
+        assert_eq!(tree.search(42), Some(&"original"));
+        tree.update(42, "updated");
+        assert_eq!(tree.search(42), Some(&"updated"));
+        tree.update(100, "new");
+        assert_eq!(tree.search(100), Some(&"new"));
+        assert_eq!(tree.search(42), Some(&"updated"));
     }
 }
