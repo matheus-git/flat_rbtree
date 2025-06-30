@@ -57,22 +57,10 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     
     #[inline(always)]
     pub fn insert(&mut self, key: K, value: V) {
-        let mut x = self.root;
-        let mut y = SENTINEL;
-
-        while x != SENTINEL {
-            y = x;
-
-            let y_node = self.get_node_by_index(y);
-
-            match key.cmp(&y_node.key) {
-                Ordering::Less => x = y_node.left,
-                Ordering::Greater => x = y_node.right,
-                Ordering::Equal => {
-                    self.get_mut_node_by_index(x).value = value;
-                    return;
-                },
-            }
+        let y = self.get_index_by_key(&key);
+        if y != SENTINEL {
+            self.get_mut_node_by_index(y).value = value;
+            return;
         }
 
         let new_node = Node {
