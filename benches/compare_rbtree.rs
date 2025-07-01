@@ -82,7 +82,7 @@ fn bench_search_custom(c: &mut Criterion) {
     group.bench_function("Search 10_000 - Custom RBTree", |b| {
         b.iter(|| {
             for i in 0..N {
-                black_box(tree.search(i));
+                black_box(tree.search(&i));
             }
         });
     });
@@ -111,10 +111,10 @@ criterion_group!(
     name = benches;
     config = Criterion::default();
     targets =
-        bench_insert_custom,
-        bench_insert_lib,
-        bench_remove_custom,
-        bench_remove_lib,
+        //bench_insert_custom,
+        //bench_insert_lib,
+        //bench_remove_custom,
+        //bench_remove_lib,
         bench_search_custom,
         bench_search_lib,
 );

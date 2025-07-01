@@ -46,7 +46,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     }
     
     #[inline(always)]
-    pub fn search(&self, key: K) -> Option<&V> {
+    pub fn search(&self, key: &K) -> Option<&V> {
         let x = self.get_index_by_key(&key);
         if x == SENTINEL{
             return None;
@@ -585,10 +585,10 @@ mod tests {
     #[test]
     fn test_insert_and_search() {
         let tree = setup_small_tree();
-        assert_eq!(tree.search(10), Some(&"A"));
-        assert_eq!(tree.search(20), Some(&"B"));
-        assert_eq!(tree.search(5), Some(&"C"));
-        assert_eq!(tree.search(30), None);
+        assert_eq!(tree.search(&10), Some(&"A"));
+        assert_eq!(tree.search(&20), Some(&"B"));
+        assert_eq!(tree.search(&5), Some(&"C"));
+        assert_eq!(tree.search(&30), None);
         assert!(tree.is_valid());
     }
 
@@ -596,9 +596,9 @@ mod tests {
     fn test_remove_leaf_node() {
         let mut tree = setup_small_tree();
         tree.remove(5);
-        assert_eq!(tree.search(5), None);
-        assert_eq!(tree.search(10), Some(&"A"));
-        assert_eq!(tree.search(20), Some(&"B"));
+        assert_eq!(tree.search(&5), None);
+        assert_eq!(tree.search(&10), Some(&"A"));
+        assert_eq!(tree.search(&20), Some(&"B"));
         assert!(tree.is_valid());
     }
 
@@ -610,8 +610,8 @@ mod tests {
         tree.insert(2, "C");
 
         tree.remove(5);
-        assert_eq!(tree.search(5), None);
-        assert_eq!(tree.search(2), Some(&"C"));
+        assert_eq!(tree.search(&5), None);
+        assert_eq!(tree.search(&2), Some(&"C"));
         assert!(tree.is_valid());
     }
 
@@ -625,9 +625,9 @@ mod tests {
         tree.insert(18, "E");
 
         tree.remove(15);
-        assert_eq!(tree.search(15), None);
-        assert_eq!(tree.search(12), Some(&"D"));
-        assert_eq!(tree.search(18), Some(&"E"));
+        assert_eq!(tree.search(&15), None);
+        assert_eq!(tree.search(&12), Some(&"D"));
+        assert_eq!(tree.search(&18), Some(&"E"));
         assert!(tree.is_valid());
     }
 
@@ -638,7 +638,7 @@ mod tests {
         tree.remove(42);
         tree.insert(42, "Y");
 
-        assert_eq!(tree.search(42), Some(&"Y"));
+        assert_eq!(tree.search(&42), Some(&"Y"));
         assert!(tree.is_valid());
     }
 
@@ -650,11 +650,11 @@ mod tests {
             tree.insert(i, i * 10);
         }
         for i in 0..100 {
-            assert_eq!(tree.search(i), Some(&(i * 10)));
+            assert_eq!(tree.search(&i), Some(&(i * 10)));
         }
         for i in 0..100 {
             tree.remove(i);
-            assert_eq!(tree.search(i), None);
+            assert_eq!(tree.search(&i), None);
         }
         assert!(tree.is_valid());
     }
@@ -670,10 +670,10 @@ mod tests {
         tree.remove(70);
 
         for &k in &[30, 70] {
-            assert_eq!(tree.search(k), None);
+            assert_eq!(tree.search(&k), None);
         }
         for &k in &[20, 40, 60, 80] {
-            assert_eq!(tree.search(k), Some(&k));
+            assert_eq!(tree.search(&k), Some(&k));
         }
         assert!(tree.is_valid());
     }
@@ -696,13 +696,13 @@ mod tests {
             tree.insert(k, k + 123);
         }
         for &k in &keys {
-            assert_eq!(tree.search(k), Some(&(k + 123)));
+            assert_eq!(tree.search(&k), Some(&(k + 123)));
         }
 
         keys.shuffle(&mut rng);
         for &k in &keys {
             tree.remove(k);
-            assert_eq!(tree.search(k), None);
+            assert_eq!(tree.search(&k), None);
         }
 
         assert_eq!(tree.root, SENTINEL);
@@ -718,11 +718,11 @@ mod tests {
             tree.insert(i, i);
         }
         for i in 0..COUNT {
-            assert_eq!(tree.search(i), Some(&i));
+            assert_eq!(tree.search(&i), Some(&i));
         }
         for i in 0..COUNT {
             tree.remove(i);
-            assert_eq!(tree.search(i), None);
+            assert_eq!(tree.search(&i), None);
         }
 
         assert_eq!(tree.root, SENTINEL);
@@ -738,10 +738,10 @@ mod tests {
         }
         for i in 0..5_000 {
             tree.remove(i);
-            assert_eq!(tree.search(i), None);
+            assert_eq!(tree.search(&i), None);
         }
         for i in 5_000..10_000 {
-            assert_eq!(tree.search(i), Some(&i));
+            assert_eq!(tree.search(&i), Some(&i));
         }
     }
 
@@ -753,8 +753,8 @@ mod tests {
         tree.update(42, "updated");
         tree.update(100, "new");
 
-        assert_eq!(tree.search(42), Some(&"updated"));
-        assert_eq!(tree.search(100), Some(&"new"));
+        assert_eq!(tree.search(&42), Some(&"updated"));
+        assert_eq!(tree.search(&100), Some(&"new"));
         assert!(tree.is_valid());
     }
 }
