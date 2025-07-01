@@ -6,9 +6,10 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 
 ## Features
 
-- **Flat storage**: all nodes are stored in a `Vec`, avoiding pointer indirection.
+- **Flat storage**: all nodes are stored in a `array`, avoiding pointer indirection.
 - **No allocations per node**: avoids `Box`, `Rc`, or `Arc`.
-- **No-std friendly**: suitable for embedded environments.
+- **No-std**: suitable for embedded environments.
+- **Preallocated with MaybeUninit**: minimizes runtime overhead and ensures memory safety.
 
 ## Usage
 
@@ -24,11 +25,11 @@ tree.remove("A");
 
 | Operation | flat_rbtree | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
 |-----------|----------------|---------------|
-| **Insert** | 1.93 ms (avg)   | 3.02 ms (avg)  | 
-| **Remove** | 2.49 ns         | 0.41 ns        | 
-| **Search** | 1.08 ms         | 0.88 ms        | 
+| **Insert** | 1.14 ms   | 1.34 ms  | 
+| **Remove** | 2.12 ns        | 354 ps       | 
+| **Search** | 655 µs         | 514 µs       | 
 
-> Results may vary depending on hardware and runtime conditions.
+> It’s worth noting that `rbtree` is a pointer-based implementation, which tends to be more performant than an index-based implementation.
 
 ## 📝 License
 

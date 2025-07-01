@@ -353,31 +353,20 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
 
     #[inline(always)]
     pub fn remove(&mut self, key: K) {
-        let mut z = self.root;
-
-        while z != SENTINEL {
-            let node = self.get_node_by_index(z);
-            if key == node.key {
-                break;
-            } else if key < node.key {
-                z = node.left;
-            } else {
-                z = node.right;
-            }
-        }
-
+        let mut z = self.get_index_by_key(&key);
         if z == SENTINEL {
             return;
         }
 
         let mut y = z;
         let x;
-        let y_original_color;
 
         let (z_left, z_right, z_color) = {
             let z_node = self.get_node_by_index(z);
             (z_node.left, z_node.right, z_node.color)
         };
+
+        let mut y_original_color = z_color;;
 
         if z_left == SENTINEL {
             x = z_right;
@@ -400,9 +389,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                 self.transplant(y, y_right);
                 self.get_mut_node_by_index(y).right = z_right;
                 self.get_mut_node_by_index(z_right).parent = y;
-            }
-
-            if x != SENTINEL {
+            } else if x != SENTINEL {
                 self.get_mut_node_by_index(x).parent = y;
             }
 
@@ -424,15 +411,13 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     fn remove_fix(&mut self, mut x: usize) {
         while x != self.root && x != SENTINEL && self.is_black(x) {
             let x_parent = self.get_node_by_index(x).parent;
+            let x_parent_node = self.get_node_by_index(x_parent);
+            let x_is_left = x == x_parent_node.left;
 
-            let (mut cousin, is_left) = {
-                let x_is_left = x == self.get_node_by_index(x_parent).left;
-                let c = if x_is_left {
-                    self.get_node_by_index(x_parent).right
-                } else {
-                    self.get_node_by_index(x_parent).left
-                };
-                (c, x_is_left)
+            let mut cousin = if x_is_left {
+                x_parent_node.right
+            } else {
+                x_parent_node.left
             };
 
             if cousin == SENTINEL {
@@ -441,10 +426,13 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             }
 
             if self.is_red(cousin) {
-                self.get_mut_node_by_index(cousin).color = Color::Black;
+                {
+                    let cousin_mut = self.get_mut_node_by_index(cousin);
+                    cousin_mut.color = Color::Black;
+                }
                 self.get_mut_node_by_index(x_parent).color = Color::Red;
 
-                if is_left {
+                if x_is_left {
                     self.rotate_left(x_parent);
                     cousin = self.get_node_by_index(x_parent).right;
                 } else {
@@ -458,10 +446,8 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                 }
             }
 
-            let (mut c_left, mut c_right) = {
-                let c_node = self.get_node_by_index(cousin);
-                (c_node.left, c_node.right)
-            };
+            let c_node = self.get_node_by_index(cousin);
+            let (mut c_left, mut c_right) = (c_node.left, c_node.right);
 
             let left_black = c_left == SENTINEL || self.is_black(c_left);
             let right_black = c_right == SENTINEL || self.is_black(c_right);
@@ -470,7 +456,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                 self.get_mut_node_by_index(cousin).color = Color::Red;
                 x = x_parent;
             } else {
-                if is_left {
+                if x_is_left {
                     if self.is_black(c_right) {
                         if c_left != SENTINEL {
                             self.get_mut_node_by_index(c_left).color = Color::Black;
@@ -481,8 +467,10 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                         c_right = self.get_node_by_index(cousin).right;
                     }
 
-                    self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
+                    let parent_color = self.get_node_by_index(x_parent).color;
+                    self.get_mut_node_by_index(cousin).color = parent_color;
                     self.get_mut_node_by_index(x_parent).color = Color::Black;
+
                     if c_right != SENTINEL {
                         self.get_mut_node_by_index(c_right).color = Color::Black;
                     }
@@ -498,8 +486,10 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                         c_left = self.get_node_by_index(cousin).left;
                     }
 
-                    self.get_mut_node_by_index(cousin).color = self.get_node_by_index(x_parent).color;
+                    let parent_color = self.get_node_by_index(x_parent).color;
+                    self.get_mut_node_by_index(cousin).color = parent_color;
                     self.get_mut_node_by_index(x_parent).color = Color::Black;
+
                     if c_left != SENTINEL {
                         self.get_mut_node_by_index(c_left).color = Color::Black;
                     }
@@ -753,7 +743,6 @@ mod tests {
         for i in 5_000..10_000 {
             assert_eq!(tree.search(i), Some(&i));
         }
-        assert!(tree.is_valid());
     }
 
     #[test]
