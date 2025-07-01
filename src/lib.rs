@@ -29,6 +29,7 @@ struct Node<K, V> {
     right: usize,
 }
 
+/// Index-based Red-Black Tree implementation
 #[derive(Debug)]
 pub struct RedBlackTree<K: Ord, V, const N: usize> {
     nodes: [MaybeUninit<Node<K, V>>; N],
