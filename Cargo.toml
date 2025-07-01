@@ -7,7 +7,7 @@ description = "A flat, index-based Red-Black Tree with no heap allocations. Idea
 license = "MIT"
 repository = "https://github.com/matheus-git/flat_rbtree"
 readme = "README.md"
-keywords = ["rbtree", "red-black-tree", "no-alloc", "no_std", "arena", "embedded", "flat", "datastructure"]
+keywords = ["rbtree", "red-black-tree", "no-alloc", "no_std", "embedded"]
 categories = ["data-structures", "embedded", "no-std", "memory-management"]
 
 [dependencies]
