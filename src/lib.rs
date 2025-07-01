@@ -1,6 +1,13 @@
 #![allow(warnings)]
 #![no_std]
-
+//! A fast, index-based Red-Black Tree with no heap allocations.
+//!
+//! ## Features
+//! - No heap allocation
+//! - All nodes are stored in a `array`, avoiding pointers
+//! - Flat storage using `MaybeUninit`
+//! - Suitable for `no_std` environments
+//!
 use core::mem::MaybeUninit;
 use core::cmp::Ordering;
 
@@ -31,6 +38,9 @@ pub struct RedBlackTree<K: Ord, V, const N: usize> {
 }
 
 impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
+    /// Creates a new empty red-black tree with capacity for up to `N` elements.
+    ///
+    /// Nodes are preallocated using `MaybeUninit`, and no heap allocations are performed.
     pub fn new() -> Self {
         let mut free_indexes = [0; N];
         for (i, v) in (0..N).rev().enumerate() {
@@ -45,6 +55,9 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
     }
     
+    /// Searches for a value associated with the given key.
+    ///
+    /// Returns a reference to the value if the key is found, or `None` otherwise.
     #[inline(always)]
     pub fn search(&self, key: &K) -> Option<&V> {
         let x = self.get_index_by_key(&key);
@@ -55,6 +68,11 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         Some(&z.value)
     }
     
+    /// Inserts a key-value pair into the tree.
+    ///
+    /// If the key already exists, its value is replaced.
+    ///
+    /// Panics if the tree is already full (`N` elements).
     #[inline(always)]
     pub fn insert(&mut self, key: K, value: V) {
         let mut x = self.root;
@@ -127,6 +145,10 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         SENTINEL
     }
 
+    /// Updates the value for an existing key.
+    ///
+    /// If the key does not exist, this function does nothing.
+    ///
     #[inline(always)]
     pub fn update(&mut self, key: K, value: V) {
         let z = self.get_index_by_key(&key); 
@@ -351,6 +373,9 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
     }
 
+    // Removes a key (and its associated value) from the tree.
+    ///
+    /// If the key is not found, nothing happens.
     #[inline(always)]
     pub fn remove(&mut self, key: K) {
         let mut z = self.get_index_by_key(&key);
@@ -531,6 +556,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
     }
 
+    /// Checks if the red-black tree invariants are preserved.
     pub fn is_valid(&self) -> bool {
         if self.root == SENTINEL {
             return true;

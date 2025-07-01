@@ -17,7 +17,7 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 let mut tree = RedBlackTree::<&str, i32, 1>::new();
 tree.insert("A", 1);
 tree.update("A", 2);
-tree.search("A"); // Some(&2)
+tree.search(&"A"); // Some(&2)
 tree.remove("A");
 ```
 
