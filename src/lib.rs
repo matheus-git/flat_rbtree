@@ -40,7 +40,7 @@ impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index == SENTINEL {
-            let next = self.tree.min(self.tree.root);
+            let next = self.tree.min_usize(self.tree.root);
             if next == SENTINEL {
                 return None;
             }
@@ -62,7 +62,7 @@ impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K
 impl<'a, K: Ord + 'a, V: 'a, const N: usize> DoubleEndedIterator for RedBlackTreeIter<'a, K, V, N> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index == SENTINEL {
-            let next = self.tree.max(self.tree.root);
+            let next = self.tree.max_usize(self.tree.root);
             if next == SENTINEL {
                 return None;
             }
@@ -109,13 +109,6 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
     }
 
-    pub fn iter(&self) -> RedBlackTreeIter<'_, K, V, N> {
-        RedBlackTreeIter {
-            tree: self,
-            index: SENTINEL,
-        }
-    }
-
     /// Searches for a value associated with the given key.
     ///
     /// Returns a reference to the value if the key is found, or `None` otherwise.
@@ -132,8 +125,6 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     /// Inserts a key-value pair into the tree.
     ///
     /// If the key already exists, its value is replaced.
-    ///
-    /// Panics if the tree is already full (`N` elements).
     #[inline(always)]
     pub fn insert(&mut self, key: K, value: V) -> Option<&V> {
         let mut x = self.root;
@@ -209,8 +200,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
 
     /// Updates the value for an existing key.
     ///
-    /// If the key does not exist, this function does nothing.
-    ///
+    /// If the key is not found, it is inserted with the provided key and value.
     #[inline(always)]
     pub fn update(&mut self, key: K, value: V) -> Option<&V>{
         let z = self.get_index_by_key(&key); 
@@ -362,7 +352,8 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         self.get_mut_node_by_index(x).parent = y;
     } 
 
-    fn min_item(&self) -> Option<(&K, &V)> {
+    /// Returns a reference to the smallest (minimum) key-value pair in the tree, if any.
+    pub fn min(&self) -> Option<(&K, &V)> {
         let mut x = self.root;
         if x == SENTINEL {
             return None
@@ -374,7 +365,8 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         Some((&item.key, &item.value))
     }
 
-    fn max_item(&self) -> Option<(&K, &V)> {
+    /// Returns a reference to the largest (maximum) key-value pair in the tree, if any.
+    pub fn max(&self) -> Option<(&K, &V)> {
         let mut x = self.root;
         if x == SENTINEL {
             return None
@@ -386,7 +378,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         Some((&item.key, &item.value))
     }
 
-    fn min(&self, mut x: usize) -> usize {
+    fn min_usize(&self, mut x: usize) -> usize {
         if x == SENTINEL {
             return x
         }
@@ -396,7 +388,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         x
     }
 
-    fn max(&self, mut x: usize) -> usize {
+    fn max_usize(&self, mut x: usize) -> usize {
         if x == SENTINEL {
             return x
         }
@@ -412,7 +404,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
 
         if self.get_node_by_index(x).right != SENTINEL {
-            return self.min(self.get_node_by_index(x).right)
+            return self.min_usize(self.get_node_by_index(x).right)
         }
         
         let mut y = self.get_node_by_index(x).parent;
@@ -430,7 +422,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
 
         if self.get_node_by_index(x).left != SENTINEL {
-            return self.max(self.get_node_by_index(x).left);
+            return self.max_usize(self.get_node_by_index(x).left);
         }
 
         let mut y = self.get_node_by_index(x).parent;
@@ -464,7 +456,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     ///
     /// If the key is not found, nothing happens.
     #[inline(always)]
-    pub fn remove(&mut self, key: K) {
+    pub fn remove(&mut self, key: K){
         let mut z = self.get_index_by_key(&key);
         if z == SENTINEL {
             return;
@@ -489,7 +481,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             y_original_color = z_color;
             self.transplant(z, z_left);
         } else {
-            y = self.min(z_right);
+            y = self.min_usize(z_right);
             let (y_right, y_color) = {
                 let y_node = self.get_node_by_index(y);
                 (y_node.right, y_node.color)
@@ -642,6 +634,14 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             return self.nodes[x].assume_init_mut()
         }
     }
+    
+    /// Returns an iterator over the key-value pairs of the tree in ascending key order.
+    pub fn iter(&self) -> RedBlackTreeIter<'_, K, V, N> {
+        RedBlackTreeIter {
+            tree: self,
+            index: SENTINEL,
+        }
+    }
 
     /// Checks if the red-black tree invariants are preserved.
     pub fn is_valid(&self) -> bool {
@@ -681,6 +681,31 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
 
         Some(left_black + if node.color == Color::Black { 1 } else { 0 })
     }
+
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        let x = self.get_index_by_key(key);
+        if SENTINEL == x {
+            return false
+        }
+        true
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        let x = self.get_index_by_key(key);
+        if SENTINEL == x {
+            return None
+        }
+        Some(&mut self.get_mut_node_by_index(x).value)
+    }
+
+    pub fn len(&self) -> usize {
+        N - self.free_len
+    }
+
+    pub fn isEmpty(&self) -> bool {
+        self.len() == N
+    }
 }
 
 #[cfg(test)]
@@ -696,21 +721,28 @@ mod tests {
     }
 
     #[test]
+    fn test_utils(){
+        let mut tree = setup_small_tree();
+        assert_eq!(tree.contains_key(&10), true);
+        assert_eq!(tree.get_mut(&10), Some(&mut "A"));
+        assert_eq!(tree.len(), 3);
+        assert_eq!(tree.isEmpty(), false);
+    }
+
+    #[test]
     fn test_min_and_max() {
         let tree = setup_small_tree();
-        assert_eq!(tree.min_item(), Some((&5, &"C")));
-        assert_eq!(tree.max_item(), Some((&20, &"B")));
+        assert_eq!(tree.min(), Some((&5, &"C")));
+        assert_eq!(tree.max(), Some((&20, &"B")));
     }   
     
     #[test]
     fn test_iter() {
         let tree = setup_small_tree();
-
-        for pair in tree.iter() {
-        }
-
-        for pair in tree.iter().rev() {
-        }
+    
+        let mut iter = tree.iter();
+        assert_eq!(iter.next(), Some((&5, &"C")));
+        assert_eq!(iter.next(), Some((&10, &"A")));
     }    
     
     #[test]
