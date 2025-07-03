@@ -15,32 +15,32 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 ## Usage
 
 ```rust
-    let mut tree = RedBlackTree::<i32, &str, 10>::new();
+let mut tree = RedBlackTree::<i32, &str, 10>::new();
 
-    tree.insert(10, "A");
-    tree.insert(20, "B");
-    tree.insert(5, "C");
+tree.insert(10, "A");
+tree.insert(20, "B");
+tree.insert(5, "C");
 
-    tree.update(10, "Updated A");
+tree.update(10, "Updated A");
 
-    if let Some(value) = tree.search(&10) {
-        println!("Key 10 has value: {}", value);
-    }
+if let Some(value) = tree.search(&10) {
+    println!("Key 10 has value: {}", value);
+}
 
-    for (key, value) in tree.iter() {
-        println!("Key: {}, Value: {}", key, value);
-    }
+for (key, value) in tree.iter() {
+    println!("Key: {}, Value: {}", key, value);
+}
 
-    tree.remove(20);
+tree.remove(20);
 
-    if !tree.contains_key(&20) {
-        println!("Key 20 successfully removed");
-    }
+if !tree.contains_key(&20) {
+    println!("Key 20 successfully removed");
+}
 ```
 
 ## Benchmark: flat_rbtree vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
 
-Since all operations are at most O(log n), this benchmark is just to give an idea of the performance compared to a pointer-based implementation.
+> Since all operations are at most O(log n), this benchmark is just to give an idea of the performance compared to a pointer-based implementation.
 
 | Operation | flat_rbtree | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
 |-----------|----------------|---------------|
