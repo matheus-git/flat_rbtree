@@ -1,13 +1,14 @@
 #![allow(warnings)]
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 
 //! A fast, index-based Red-Black Tree with no heap allocations.
 //!
 //! ## Features
-//! - No heap allocation
-//! - All nodes are stored in a `array`, avoiding pointers
-//! - Flat storage using `MaybeUninit`
-//! - Suitable for `no_std` environments
+//! - **Flat storage**: all nodes are stored in an `array`, avoiding pointer indirection.
+//! - **No allocations per node**: avoids `Box`, `Rc`, or `Arc`.
+//! - **No-std**: works in embedded or bare-metal environments without relying on the Rust standard library.
+//! - **Preallocated with `MaybeUninit`**: memory for all nodes is allocated upfront, minimizing runtime overhead and ensuring safe initialization.
+//! - **Fixed capacity**: tree size is bounded at compile-time, making resource usage predictable.
 //!
 use core::mem::MaybeUninit;
 use core::cmp::Ordering;
@@ -30,6 +31,7 @@ struct Node<K, V> {
     right: usize,
 }
 
+/// An iterator over the entries of a `RedBlackTree`.
 pub struct RedBlackTreeIter<'a, K: Ord + 'a, V: 'a, const N: usize> {
     tree: &'a RedBlackTree<K, V, N>,
     index: usize,
@@ -38,6 +40,7 @@ pub struct RedBlackTreeIter<'a, K: Ord + 'a, V: 'a, const N: usize> {
 impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K, V, N> {
     type Item = (&'a K, &'a V);
 
+    /// Advances the iterator and returns the next key-value pair in ascending order.
     fn next(&mut self) -> Option<Self::Item> {
         if self.index == SENTINEL {
             let next = self.tree.min_usize(self.tree.root);
@@ -60,6 +63,7 @@ impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K
 }
 
 impl<'a, K: Ord + 'a, V: 'a, const N: usize> DoubleEndedIterator for RedBlackTreeIter<'a, K, V, N> {
+    /// Advances the iterator from the back and returns the previous key-value pair in descending order.
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index == SENTINEL {
             let next = self.tree.max_usize(self.tree.root);
@@ -718,6 +722,34 @@ mod tests {
         tree.insert(20, "B");
         tree.insert(5, "C");
         tree
+    }
+
+    #[test]
+    fn test_example() {
+        let mut tree = RedBlackTree::<i32, &str, 10>::new();
+
+        tree.insert(10, "A");
+        tree.insert(20, "B");
+        tree.insert(5, "C");
+
+        tree.update(10, "Updated A");
+
+        assert_eq!(tree.search(&10), Some(&"Updated A"));
+        assert_eq!(tree.search(&20), Some(&"B"));
+        assert_eq!(tree.search(&5), Some(&"C"));
+        assert_eq!(tree.contains_key(&20), true);
+        assert_eq!(tree.contains_key(&100), false);
+
+        // Check iteration order (should be sorted by key)
+        let mut iter = tree.iter();
+        assert_eq!(iter.next(), Some((&5, &"C")));
+        assert_eq!(iter.next(), Some((&10, &"Updated A")));
+        assert_eq!(iter.next(), Some((&20, &"B")));
+        assert_eq!(iter.next(), None);
+
+        tree.remove(20);
+        assert_eq!(tree.search(&20), None);
+        assert_eq!(tree.contains_key(&20), false);
     }
 
     #[test]

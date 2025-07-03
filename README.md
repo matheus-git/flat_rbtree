@@ -8,20 +8,39 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 
 - **Flat storage**: all nodes are stored in a `array`, avoiding pointer indirection.
 - **No allocations per node**: avoids `Box`, `Rc`, or `Arc`.
-- **No-std**: suitable for embedded environments.
-- **Preallocated with MaybeUninit**: minimizes runtime overhead and ensures memory safety.
+- **No-std**: works in embedded or bare-metal environments without relying on the Rust standard library..
+- **Preallocated with MaybeUninit**: memory for all nodes is allocated upfront, minimizing runtime overhead and ensuring safe initialization.
+- **Fixed capacity**: tree size is bounded at compile-time, making resource usage predictable.
 
 ## Usage
 
 ```rust
-let mut tree = RedBlackTree::<&str, i32, 1>::new();
-tree.insert("A", 1);
-tree.update("A", 2);
-tree.search(&"A"); // Some(&2)
-tree.remove("A");
+    let mut tree = RedBlackTree::<i32, &str, 10>::new();
+
+    tree.insert(10, "A");
+    tree.insert(20, "B");
+    tree.insert(5, "C");
+
+    tree.update(10, "Updated A");
+
+    if let Some(value) = tree.search(&10) {
+        println!("Key 10 has value: {}", value);
+    }
+
+    for (key, value) in tree.iter() {
+        println!("Key: {}, Value: {}", key, value);
+    }
+
+    tree.remove(20);
+
+    if !tree.contains_key(&20) {
+        println!("Key 20 successfully removed");
+    }
 ```
 
 ## Benchmark: flat_rbtree vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
+
+Since all operations are at most O(log n), this benchmark is just to give an idea of the performance compared to a pointer-based implementation.
 
 | Operation | flat_rbtree | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
 |-----------|----------------|---------------|
@@ -29,7 +48,6 @@ tree.remove("A");
 | **Remove** | 2.12 ns        | 354 ps       | 
 | **Search** | 655 µs         | 514 µs       | 
 
-> It’s worth noting that `rbtree` is a pointer-based implementation, which tends to be more performant than an index-based implementation.
 
 ## 📝 License
 
