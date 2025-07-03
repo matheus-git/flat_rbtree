@@ -1,5 +1,6 @@
 #![allow(warnings)]
-#![no_std]
+#![cfg_attr(not(test), no_std)]
+
 //! A fast, index-based Red-Black Tree with no heap allocations.
 //!
 //! ## Features
@@ -29,6 +30,58 @@ struct Node<K, V> {
     right: usize,
 }
 
+pub struct RedBlackTreeIter<'a, K: Ord + 'a, V: 'a, const N: usize> {
+    tree: &'a RedBlackTree<K, V, N>,
+    index: usize,
+}
+
+impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K, V, N> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index == SENTINEL {
+            let next = self.tree.min(self.tree.root);
+            if next == SENTINEL {
+                return None;
+            }
+            self.index = next;
+            let next_node = self.tree.get_node_by_index(next);
+            return Some((&next_node.key, &next_node.value))
+
+        }
+        let next = self.tree.successor(self.index);
+        if next == SENTINEL {
+            return None;
+        }
+        self.index = next;
+        let next_node = self.tree.get_node_by_index(next);
+        return Some((&next_node.key, &next_node.value))
+    }
+}
+
+impl<'a, K: Ord + 'a, V: 'a, const N: usize> DoubleEndedIterator for RedBlackTreeIter<'a, K, V, N> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index == SENTINEL {
+            let next = self.tree.max(self.tree.root);
+            if next == SENTINEL {
+                return None;
+            }
+            self.index = next;
+            let next_node = self.tree.get_node_by_index(next);
+            return Some((&next_node.key, &next_node.value))
+
+        }
+        let next = self.tree.predecessor(self.index);
+        if next == SENTINEL {
+            return None;
+        }
+        self.index = next;
+        let next_node = self.tree.get_node_by_index(next);
+        return Some((&next_node.key, &next_node.value))
+    }
+}
+
+
 /// Index-based Red-Black Tree implementation
 #[derive(Debug)]
 pub struct RedBlackTree<K: Ord, V, const N: usize> {
@@ -55,7 +108,14 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             root: SENTINEL,
         }
     }
-    
+
+    pub fn iter(&self) -> RedBlackTreeIter<'_, K, V, N> {
+        RedBlackTreeIter {
+            tree: self,
+            index: SENTINEL,
+        }
+    }
+
     /// Searches for a value associated with the given key.
     ///
     /// Returns a reference to the value if the key is found, or `None` otherwise.
@@ -75,7 +135,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     ///
     /// Panics if the tree is already full (`N` elements).
     #[inline(always)]
-    pub fn insert(&mut self, key: K, value: V) {
+    pub fn insert(&mut self, key: K, value: V) -> Option<&V> {
         let mut x = self.root;
         let mut y = SENTINEL;
 
@@ -89,7 +149,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
                 Ordering::Greater => x = y_node.right,
                 Ordering::Equal => {
                     self.get_mut_node_by_index(x).value = value;
-                    return;
+                    return None;
                 },
             }
         }
@@ -116,7 +176,6 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         let new_key = &new_node.key;
 
         self.get_mut_node_by_index(new_node_index).parent = y;
-
         if y == SENTINEL {
             self.root = new_node_index;
         } else {
@@ -128,6 +187,8 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
 
         self.insert_fixup(new_node_index);
+
+        Some(&self.get_node_by_index(new_node_index).value)
     }
 
     #[inline(always)]
@@ -151,7 +212,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     /// If the key does not exist, this function does nothing.
     ///
     #[inline(always)]
-    pub fn update(&mut self, key: K, value: V) {
+    pub fn update(&mut self, key: K, value: V) -> Option<&V>{
         let z = self.get_index_by_key(&key); 
 
         if z == SENTINEL {
@@ -159,6 +220,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
 
         self.get_mut_node_by_index(z).value = value;
+        Some(&self.get_node_by_index(z).value)
     }
 
     #[inline(always)]
@@ -299,6 +361,30 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
         self.get_mut_node_by_index(x).parent = y;
     } 
+
+    fn min_item(&self) -> Option<(&K, &V)> {
+        let mut x = self.root;
+        if x == SENTINEL {
+            return None
+        }
+        while self.get_node_by_index(x).left != SENTINEL {
+            x = self.get_node_by_index(x).left;
+        }
+        let item = self.get_node_by_index(x);
+        Some((&item.key, &item.value))
+    }
+
+    fn max_item(&self) -> Option<(&K, &V)> {
+        let mut x = self.root;
+        if x == SENTINEL {
+            return None
+        }
+        while self.get_node_by_index(x).right != SENTINEL {
+            x = self.get_node_by_index(x).right;
+        }
+        let item = self.get_node_by_index(x);
+        Some((&item.key, &item.value))
+    }
 
     fn min(&self, mut x: usize) -> usize {
         if x == SENTINEL {
@@ -609,6 +695,24 @@ mod tests {
         tree
     }
 
+    #[test]
+    fn test_min_and_max() {
+        let tree = setup_small_tree();
+        assert_eq!(tree.min_item(), Some((&5, &"C")));
+        assert_eq!(tree.max_item(), Some((&20, &"B")));
+    }   
+    
+    #[test]
+    fn test_iter() {
+        let tree = setup_small_tree();
+
+        for pair in tree.iter() {
+        }
+
+        for pair in tree.iter().rev() {
+        }
+    }    
+    
     #[test]
     fn test_insert_and_search() {
         let tree = setup_small_tree();
