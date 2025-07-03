@@ -4,6 +4,8 @@
 
 A fast, index-based Red-Black Tree with no heap allocations — ideal for systems where performance and memory layout matter.
 
+See [Documentation](https://docs.rs/flat_rbtree/0.1.7)
+
 ## Features
 
 - **Flat storage**: all nodes are stored in a `array`, avoiding pointer indirection.
@@ -15,6 +17,8 @@ A fast, index-based Red-Black Tree with no heap allocations — ideal for system
 ## Usage
 
 ```rust
+use flat_rbtree::RedBlackTree;
+
 let mut tree = RedBlackTree::<i32, &str, 10>::new();
 
 tree.insert(10, "A");

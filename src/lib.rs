@@ -10,6 +10,33 @@
 //! - **Preallocated with `MaybeUninit`**: memory for all nodes is allocated upfront, minimizing runtime overhead and ensuring safe initialization.
 //! - **Fixed capacity**: tree size is bounded at compile-time, making resource usage predictable.
 //!
+//! ## Example
+//! ```rust
+///! use flat_rbtree::RedBlackTree;
+///!
+///! let mut tree = RedBlackTree::<i32, &str, 10>::new();
+///!
+///! tree.insert(10, "A");
+///! tree.insert(20, "B");
+///! tree.insert(5, "C");
+///!
+///! tree.update(10, "Updated A");
+///!
+///! if let Some(value) = tree.search(&10) {
+///!     println!("Key 10 has value: {}", value);
+///! }
+///!
+///! for (key, value) in tree.iter() {
+///!     println!("Key: {}, Value: {}", key, value);
+///! }
+///!
+///! assert_eq!(tree.remove(20), true);
+///!
+///! if !tree.contains_key(&20) {
+///!     println!("Key 20 successfully removed");
+///! }
+///! ```
+///!
 use core::mem::MaybeUninit;
 use core::cmp::Ordering;
 
@@ -460,10 +487,10 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     ///
     /// If the key is not found, nothing happens.
     #[inline(always)]
-    pub fn remove(&mut self, key: K){
+    pub fn remove(&mut self, key: K) -> bool {
         let mut z = self.get_index_by_key(&key);
         if z == SENTINEL {
-            return;
+            return false;
         }
 
         let mut y = z;
@@ -513,6 +540,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
 
         self.free_indexes[self.free_len] = z;
         self.free_len += 1;
+        true
     }
 
     #[inline(always)]
@@ -740,20 +768,20 @@ mod tests {
         assert_eq!(tree.contains_key(&20), true);
         assert_eq!(tree.contains_key(&100), false);
 
-        // Check iteration order (should be sorted by key)
         let mut iter = tree.iter();
         assert_eq!(iter.next(), Some((&5, &"C")));
         assert_eq!(iter.next(), Some((&10, &"Updated A")));
         assert_eq!(iter.next(), Some((&20, &"B")));
         assert_eq!(iter.next(), None);
 
-        tree.remove(20);
+        assert_eq!(tree.remove(20), true);
+        assert_eq!(tree.remove(20), false);
         assert_eq!(tree.search(&20), None);
         assert_eq!(tree.contains_key(&20), false);
     }
 
     #[test]
-    fn test_utils(){
+    fn test_utils() {
         let mut tree = setup_small_tree();
         assert_eq!(tree.contains_key(&10), true);
         assert_eq!(tree.get_mut(&10), Some(&mut "A"));
@@ -766,17 +794,17 @@ mod tests {
         let tree = setup_small_tree();
         assert_eq!(tree.min(), Some((&5, &"C")));
         assert_eq!(tree.max(), Some((&20, &"B")));
-    }   
-    
+    }
+
     #[test]
     fn test_iter() {
         let tree = setup_small_tree();
-    
+
         let mut iter = tree.iter();
         assert_eq!(iter.next(), Some((&5, &"C")));
         assert_eq!(iter.next(), Some((&10, &"A")));
-    }    
-    
+    }
+
     #[test]
     fn test_insert_and_search() {
         let tree = setup_small_tree();
@@ -790,7 +818,8 @@ mod tests {
     #[test]
     fn test_remove_leaf_node() {
         let mut tree = setup_small_tree();
-        tree.remove(5);
+        assert_eq!(tree.remove(5), true);
+        assert_eq!(tree.remove(5), false);
         assert_eq!(tree.search(&5), None);
         assert_eq!(tree.search(&10), Some(&"A"));
         assert_eq!(tree.search(&20), Some(&"B"));
@@ -804,7 +833,8 @@ mod tests {
         tree.insert(5, "B");
         tree.insert(2, "C");
 
-        tree.remove(5);
+        assert_eq!(tree.remove(5), true);
+        assert_eq!(tree.remove(5), false);
         assert_eq!(tree.search(&5), None);
         assert_eq!(tree.search(&2), Some(&"C"));
         assert!(tree.is_valid());
@@ -819,7 +849,8 @@ mod tests {
         tree.insert(12, "D");
         tree.insert(18, "E");
 
-        tree.remove(15);
+        assert_eq!(tree.remove(15), true);
+        assert_eq!(tree.remove(15), false);
         assert_eq!(tree.search(&15), None);
         assert_eq!(tree.search(&12), Some(&"D"));
         assert_eq!(tree.search(&18), Some(&"E"));
@@ -830,7 +861,8 @@ mod tests {
     fn test_reinsert_removed_key() {
         let mut tree = RedBlackTree::<i32, &str, 10>::new();
         tree.insert(42, "X");
-        tree.remove(42);
+        assert_eq!(tree.remove(42), true);
+        assert_eq!(tree.remove(42), false);
         tree.insert(42, "Y");
 
         assert_eq!(tree.search(&42), Some(&"Y"));
@@ -848,7 +880,8 @@ mod tests {
             assert_eq!(tree.search(&i), Some(&(i * 10)));
         }
         for i in 0..100 {
-            tree.remove(i);
+            assert_eq!(tree.remove(i), true);
+            assert_eq!(tree.remove(i), false);
             assert_eq!(tree.search(&i), None);
         }
         assert!(tree.is_valid());
@@ -861,8 +894,9 @@ mod tests {
             tree.insert(k, k);
         }
 
-        tree.remove(30);
-        tree.remove(70);
+        assert_eq!(tree.remove(30), true);
+        assert_eq!(tree.remove(70), true);
+        assert_eq!(tree.remove(30), false);
 
         for &k in &[30, 70] {
             assert_eq!(tree.search(&k), None);
@@ -896,7 +930,8 @@ mod tests {
 
         keys.shuffle(&mut rng);
         for &k in &keys {
-            tree.remove(k);
+            assert_eq!(tree.remove(k), true);
+            assert_eq!(tree.remove(k), false);
             assert_eq!(tree.search(&k), None);
         }
 
@@ -916,7 +951,8 @@ mod tests {
             assert_eq!(tree.search(&i), Some(&i));
         }
         for i in 0..COUNT {
-            tree.remove(i);
+            assert_eq!(tree.remove(i), true);
+            assert_eq!(tree.remove(i), false);
             assert_eq!(tree.search(&i), None);
         }
 
@@ -932,7 +968,8 @@ mod tests {
             tree.insert(i, i);
         }
         for i in 0..5_000 {
-            tree.remove(i);
+            assert_eq!(tree.remove(i), true);
+            assert_eq!(tree.remove(i), false);
             assert_eq!(tree.search(&i), None);
         }
         for i in 5_000..10_000 {
