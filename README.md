@@ -4,7 +4,7 @@
 
 A fast, index-based Red-Black Tree with no heap allocations — ideal for systems where performance and memory layout matter.
 
-See [Documentation](https://docs.rs/flat_rbtree/0.1.7)
+See [Documentation](https://docs.rs/flat_rbtree/0.2.0)
 
 ## Features
 
