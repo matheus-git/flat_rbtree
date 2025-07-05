@@ -13,8 +13,10 @@ See [Documentation](https://docs.rs/flat_rbtree/0.1.7)
 - **No-std**: works in embedded or bare-metal environments without relying on the Rust standard library..
 - **Preallocated with MaybeUninit**: memory for all nodes is allocated upfront, minimizing runtime overhead and ensuring safe initialization.
 - **Fixed capacity**: tree size is bounded at compile-time, making resource usage predictable.
+- **`expanded` feature** *(optional)*: enables tracking of subtree sizes for each node,
+  allowing support for `rank`, `select`, and `range_count` queries.
 
-## Usage
+## Simple usage
 
 ```rust
 use flat_rbtree::RedBlackTree;
