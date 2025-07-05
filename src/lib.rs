@@ -1,6 +1,6 @@
 #![allow(warnings)]
 #![no_std]
-#![cfg_attr(docsrs, doc(cfg_hide(feature = "default")))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! A fast, index-based Red-Black Tree with no heap allocations.
 //!

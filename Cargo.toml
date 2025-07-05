@@ -1,6 +1,6 @@
 [package]
 name = "flat_rbtree"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 authors = ["Matheus-git <mathiew0@gmail.com>"]
 description = "A flat, index-based Red-Black Tree with no heap allocations. Ideal for performance-critical or memory-constrained environments."
@@ -30,3 +30,5 @@ expanded = []
 
 [package.metadata.docs.rs]
 features = ["expanded"]
+rustdoc-args = ["--cfg", "docsrs"]
+
