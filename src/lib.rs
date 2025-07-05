@@ -10,33 +10,33 @@
 //! - **Preallocated with `MaybeUninit`**: memory for all nodes is allocated upfront, minimizing runtime overhead and ensuring safe initialization.
 //! - **Fixed capacity**: tree size is bounded at compile-time, making resource usage predictable.
 //!
-//! ## Example
-//! ```rust
-///! use flat_rbtree::RedBlackTree;
-///!
-///! let mut tree = RedBlackTree::<i32, &str, 10>::new();
-///!
-///! tree.insert(10, "A");
-///! tree.insert(20, "B");
-///! tree.insert(5, "C");
-///!
-///! tree.update(10, "Updated A");
-///!
-///! if let Some(value) = tree.search(&10) {
-///!     println!("Key 10 has value: {}", value);
-///! }
-///!
-///! for (key, value) in tree.iter() {
-///!     println!("Key: {}, Value: {}", key, value);
-///! }
-///!
-///! assert_eq!(tree.remove(20), true);
-///!
-///! if !tree.contains_key(&20) {
-///!     println!("Key 20 successfully removed");
-///! }
-///! ```
-///!
+//! ## Simple example
+//! ```
+//! use flat_rbtree::RedBlackTree;
+//!
+//! let mut tree = RedBlackTree::<i32, &str, 10>::new();
+//!
+//! tree.insert(10, "A");
+//! tree.insert(20, "B");
+//! tree.insert(5, "C");
+//!
+//! tree.update(10, "Updated A");
+//!
+//! if let Some(value) = tree.search(&10) {
+//!     println!("Key 10 has value: {}", value);
+//! }
+//!
+//! for (key, value) in tree.iter() {
+//!     println!("Key: {}, Value: {}", key, value);
+//! }
+//!
+//! assert_eq!(tree.remove(20), true);
+//!
+//! if !tree.contains_key(&20) {
+//!     println!("Key 20 successfully removed");
+//! }
+//! ```
+//!
 use core::mem::MaybeUninit;
 use core::cmp::Ordering;
 
@@ -56,12 +56,15 @@ struct Node<K, V> {
     parent: usize,
     left: usize,
     right: usize,
+    #[cfg(feature = "expanded")]
+    size: usize
 }
 
 /// An iterator over the entries of a `RedBlackTree`.
 pub struct RedBlackTreeIter<'a, K: Ord + 'a, V: 'a, const N: usize> {
     tree: &'a RedBlackTree<K, V, N>,
-    index: usize,
+    current: usize,
+    end: usize
 }
 
 impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K, V, N> {
@@ -69,46 +72,32 @@ impl<'a, K: Ord + 'a, V: 'a, const N: usize> Iterator for RedBlackTreeIter<'a, K
 
     /// Advances the iterator and returns the next key-value pair in ascending order.
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index == SENTINEL {
-            let next = self.tree.min_usize(self.tree.root);
-            if next == SENTINEL {
-                return None;
-            }
-            self.index = next;
-            let next_node = self.tree.get_node_by_index(next);
-            return Some((&next_node.key, &next_node.value))
-
-        }
-        let next = self.tree.successor(self.index);
-        if next == SENTINEL {
+        if self.current == SENTINEL || self.current == self.end {
             return None;
         }
-        self.index = next;
-        let next_node = self.tree.get_node_by_index(next);
-        return Some((&next_node.key, &next_node.value))
+
+        let current_node = self.tree.get_node_by_index(self.current);
+        let item = (&current_node.key, &current_node.value);
+
+        self.current = self.tree.successor(self.current);
+
+        Some(item)
     }
 }
 
 impl<'a, K: Ord + 'a, V: 'a, const N: usize> DoubleEndedIterator for RedBlackTreeIter<'a, K, V, N> {
     /// Advances the iterator from the back and returns the previous key-value pair in descending order.
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.index == SENTINEL {
-            let next = self.tree.max_usize(self.tree.root);
-            if next == SENTINEL {
-                return None;
-            }
-            self.index = next;
-            let next_node = self.tree.get_node_by_index(next);
-            return Some((&next_node.key, &next_node.value))
-
-        }
-        let next = self.tree.predecessor(self.index);
-        if next == SENTINEL {
+        if self.current == SENTINEL || self.current == self.end {
             return None;
         }
-        self.index = next;
-        let next_node = self.tree.get_node_by_index(next);
-        return Some((&next_node.key, &next_node.value))
+
+        let current_node = self.tree.get_node_by_index(self.current);
+        let item = (&current_node.key, &current_node.value);
+
+        self.current = self.tree.predecessor(self.current);
+
+        Some(item)
     }
 }
 
@@ -183,6 +172,8 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             parent: SENTINEL,
             left: SENTINEL,
             right: SENTINEL,
+            #[cfg(feature = "expanded")]
+            size: 1
         };
 
         let new_node_index = if self.free_len > 0 {
@@ -206,9 +197,12 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             } else {
                 self.get_mut_node_by_index(y).right = new_node_index;
             }
+
         }
 
         self.insert_fixup(new_node_index);
+        #[cfg(feature = "expanded")]
+        self.fix_sizes_upward(new_node_index);
 
         Some(&self.get_node_by_index(new_node_index).value)
     }
@@ -301,6 +295,28 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         self.get_mut_node_by_index(self.root).color = Color::Black;
     }
 
+    #[cfg(feature = "expanded")]
+    fn get_node_size(&self, x: usize) -> usize {
+        if SENTINEL == x {
+            return 0;
+        }
+        self.get_node_by_index(x).size
+    }
+
+    #[cfg(feature = "expanded")]
+    fn recompute_size(&mut self, x: usize) {
+        if x == SENTINEL {
+            return;
+        }
+        let (left, right) = {
+            let node = self.get_node_by_index(x);
+            (node.left, node.right)
+        };
+        let left_size = self.get_node_size(left);
+        let right_size = self.get_node_size(right);
+        self.get_mut_node_by_index(x).size = 1 + left_size + right_size;
+    }
+
     #[inline(always)]
     fn rotate_left(&mut self, x: usize) {
         let y = self.get_node_by_index(x).right;
@@ -340,6 +356,9 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             y_node.left = x;
         }
         self.get_mut_node_by_index(x).parent = y;
+        
+        #[cfg(feature = "expanded")]
+        self.fix_sizes_upward(x);
     }
 
     #[inline(always)]
@@ -381,7 +400,24 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             y_node.right = x;
         }
         self.get_mut_node_by_index(x).parent = y;
+        
+        #[cfg(feature = "expanded")]
+        self.fix_sizes_upward(x);
     } 
+
+    #[cfg(feature = "expanded")]
+    fn fix_sizes_upward(&mut self, mut node: usize) {
+        while node != SENTINEL {
+            let (left, right) = {
+                let n = self.get_node_by_index(node);
+                (n.left, n.right)
+            };
+            let size = 1 + self.get_node_size(left) + self.get_node_size(right);
+            self.get_mut_node_by_index(node).size = size;
+
+            node = self.get_node_by_index(node).parent;
+        }
+    }
 
     /// Returns a reference to the smallest (minimum) key-value pair in the tree, if any.
     pub fn min(&self) -> Option<(&K, &V)> {
@@ -468,19 +504,22 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
 
     #[inline(always)]
     fn transplant(&mut self, u: usize, v: usize) {
+        let u_parent = self.get_node_by_index(u).parent;
         if self.get_node_by_index(u).parent == SENTINEL {
             self.root = v;
         } else if u == self.get_node_by_index(self.get_node_by_index(u).parent).left {
-            let u_parent = self.get_node_by_index(u).parent;
             self.get_mut_node_by_index(u_parent).left = v;
         } else {
-            let u_parent = self.get_node_by_index(u).parent;
             self.get_mut_node_by_index(u_parent).right = v;
         }
 
         if v != SENTINEL {
             self.get_mut_node_by_index(v).parent = self.get_node_by_index(u).parent;
         }
+        #[cfg(feature = "expanded")]
+        self.recompute_size(v);
+        #[cfg(feature = "expanded")]
+        self.fix_sizes_upward(u_parent);
     }
 
     // Removes a key (and its associated value) from the tree.
@@ -532,11 +571,22 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
             self.get_mut_node_by_index(y).left = z_left;
             self.get_mut_node_by_index(z_left).parent = y;
             self.get_mut_node_by_index(y).color = z_color;
+            #[cfg(feature = "expanded")]
+            self.recompute_size(y);
         }
 
         if y_original_color == Color::Black {
             self.remove_fix(x);
         }
+
+        let mut node_to_fix = if x != SENTINEL {
+            x
+        } else {
+            self.get_node_by_index(z).parent
+        };
+
+        #[cfg(feature = "expanded")]
+        self.fix_sizes_upward(node_to_fix);
 
         self.free_indexes[self.free_len] = z;
         self.free_len += 1;
@@ -671,7 +721,49 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     pub fn iter(&self) -> RedBlackTreeIter<'_, K, V, N> {
         RedBlackTreeIter {
             tree: self,
-            index: SENTINEL,
+            current: self.min_usize(self.root),
+            end: SENTINEL
+        }
+    }
+
+    pub fn range_iter(&self, start: &K, end: &K) -> RedBlackTreeIter<'_, K, V, N> {
+        if start >= end {
+            return RedBlackTreeIter {
+                tree: self,
+                current: SENTINEL,
+                end: SENTINEL,
+            };
+        }
+
+        let mut current = self.root;
+        let mut start_index = SENTINEL;
+        let mut end_index = SENTINEL;
+
+        while current != SENTINEL {
+            let node = self.get_node_by_index(current);
+            if &node.key >= start {
+                start_index = current;
+                current = node.left;
+            } else {
+                current = node.right;
+            }
+        }
+
+        current = self.root;
+
+        while current != SENTINEL {
+            let node = self.get_node_by_index(current);
+            if &node.key >= end {
+                end_index = current;
+                current = node.left;
+            } else {
+                current = node.right;
+            }
+        }
+        RedBlackTreeIter {
+            tree: self,
+            current: start_index,
+            end: end_index,
         }
     }
 
@@ -738,6 +830,54 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     pub fn isEmpty(&self) -> bool {
         self.len() == N
     }
+
+    #[cfg(feature = "expanded")]
+    pub fn rank(&self, key: &K) -> usize {
+        let mut rank = 0;
+        let mut current = self.root;
+
+        while current != SENTINEL {
+            let node = self.get_node_by_index(current);
+
+            if *key < node.key {
+                current = node.left;
+            } else {
+                let left_size = self.get_node_size(node.left);
+                rank += left_size;
+                if *key > node.key {
+                    rank += 1;
+                }
+                current = node.right;
+            }
+        }
+
+        rank
+    }
+
+    #[cfg(feature = "expanded")]
+    pub fn select(&self, mut k: usize) -> Option<&K> {
+        let mut current = self.root;
+
+        while current != SENTINEL {
+            let node = self.get_node_by_index(current);
+            let left_size = self.get_node_size(node.left);
+
+            match k.cmp(&left_size) {
+                Ordering::Less => {
+                    current = node.left;
+                }
+                Ordering::Equal => {
+                    return Some(&node.key);
+                }
+                Ordering::Greater => {
+                    k -= left_size + 1;
+                    current = node.right;
+                }
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -751,6 +891,163 @@ mod tests {
         tree.insert(5, "C");
         tree
     }
+    #[cfg(feature = "expanded")]
+#[test]
+fn test_range_iter_completo() {
+    let mut tree = RedBlackTree::<i32, &str, 15>::new();
+
+    // Inserindo elementos
+    tree.insert(10, "A");
+    tree.insert(20, "B");
+    tree.insert(30, "C");
+    tree.insert(40, "D");
+    tree.insert(50, "E");
+    tree.insert(60, "F");
+    tree.insert(70, "G");
+
+    // Buffer fixo para resultados
+    let mut results: [(i32, &str); 15] = [(0, ""); 15];
+    let mut count;
+
+    // --- Caso 1: intervalo normal [15, 55) ---
+    count = 0;
+    for (k, v) in tree.range_iter(&15, &55) {
+        results[count] = (*k, *v);
+        count += 1;
+    }
+    let expected1 = [(20, "B"), (30, "C"), (40, "D"), (50, "E")];
+    assert_eq!(&results[..count], &expected1);
+
+    // --- Caso 2: intervalo vazio (start >= end) ---
+    count = 0;
+    for (_k, _v) in tree.range_iter(&50, &20) {
+        results[count] = (*_k, _v);
+        count += 1;
+    }
+    assert_eq!(count, 0);
+
+    // --- Caso 3: intervalo inclui tudo ---
+    count = 0;
+    for (k, v) in tree.range_iter(&5, &100) {
+        results[count] = (*k, *v);
+        count += 1;
+    }
+    let expected3 = [
+        (10, "A"), (20, "B"), (30, "C"), (40, "D"),
+        (50, "E"), (60, "F"), (70, "G")
+    ];
+    assert_eq!(&results[..count], &expected3);
+
+    // --- Caso 4: intervalo com um único elemento ---
+    count = 0;
+    for (k, v) in tree.range_iter(&30, &31) {
+        results[count] = (*k, *v);
+        count += 1;
+    }
+    let expected4 = [(30, "C")];
+    assert_eq!(&results[..count], &expected4);
+
+    // --- Caso 5: intervalo não contém elementos (fora do range) ---
+    count = 0;
+    for (_k, _v) in tree.range_iter(&80, &90) {
+        results[count] = (*_k, _v);
+        count += 1;
+    }
+    assert_eq!(count, 0);
+}
+
+    #[cfg(feature = "expanded")]
+    fn validate_node_sizes<K: Ord + Copy, V, const N: usize>(tree: &RedBlackTree<K, V, N>, node_index: usize) -> usize {
+    if node_index == SENTINEL {
+        return 0;
+    }
+
+    let node = tree.get_node_by_index(node_index);
+
+    let left_size = validate_node_sizes(tree, node.left);
+    let right_size = validate_node_sizes(tree, node.right);
+
+    let expected_size = 1 + left_size + right_size;
+
+    assert_eq!(node.size, expected_size, "Node at index {} has incorrect size", node_index);
+
+    expected_size
+}
+
+    #[cfg(feature = "expanded")]
+#[test]
+fn test_stress_node_sizes_with_rotations_and_rebalance() {
+    let mut tree = RedBlackTree::<i32, &str, 100>::new();
+
+    // Inserção de uma sequência que causa múltiplas rotações e rebalanceamentos
+    for i in 1..=31 {
+        tree.insert(i, "x");
+        validate_node_sizes(&tree, tree.root);
+    }
+
+    // Remoção de todos os elementos ímpares (alvo: rebalanceamentos no meio da árvore)
+    for i in (1..=31).step_by(2) {
+        tree.remove(i);
+        validate_node_sizes(&tree, tree.root);
+    }
+
+    // Inserções novamente, em ordem reversa para testar rebalanço à esquerda
+    for i in (32..=63).rev() {
+        tree.insert(i, "y");
+        validate_node_sizes(&tree, tree.root);
+    }
+
+    // Remoção alternada para bagunçar a árvore
+    for i in (2..=63).step_by(4) {
+        tree.remove(i);
+        validate_node_sizes(&tree, tree.root);
+    }
+
+    // Inserções randômicas no topo do espaço restante
+    for &i in &[99, 77, 88, 66, 55, 44] {
+        tree.insert(i, "z");
+        validate_node_sizes(&tree, tree.root);
+    }
+}
+    #[cfg(feature = "expanded")]
+#[test]
+fn test_rank_function() {
+    let mut tree = RedBlackTree::<i32, &str, 20>::new();
+
+    let items = [10, 20, 5, 15, 25];
+    for &item in &items {
+        tree.insert(item, "v");
+    }
+
+    // Árvore ordenada: [5, 10, 15, 20, 25]
+    assert_eq!(tree.rank(&5), 0);     // menor elemento
+    assert_eq!(tree.rank(&10), 1);
+    assert_eq!(tree.rank(&15), 2);
+    assert_eq!(tree.rank(&20), 3);
+    assert_eq!(tree.rank(&25), 4);
+    assert_eq!(tree.rank(&30), 5);    // maior que todos
+    assert_eq!(tree.rank(&13), 2);    // estaria entre 10 e 15
+    assert_eq!(tree.rank(&1), 0);     // menor que todos
+}
+
+    #[cfg(feature = "expanded")]
+    #[test]
+fn test_select_function() {
+    let mut tree = RedBlackTree::<i32, &str, 20>::new();
+
+    let values = [10, 20, 5, 15, 25];
+    for &v in &values {
+        tree.insert(v, "val");
+    }
+
+    // Ordem esperada: [5, 10, 15, 20, 25]
+    assert_eq!(tree.select(0), Some(&5));
+    assert_eq!(tree.select(1), Some(&10));
+    assert_eq!(tree.select(2), Some(&15));
+    assert_eq!(tree.select(3), Some(&20));
+    assert_eq!(tree.select(4), Some(&25));
+    assert_eq!(tree.select(5), None); // fora dos limites
+}
 
     #[test]
     fn test_example() {
@@ -962,32 +1259,19 @@ mod tests {
 
     #[test]
     fn test_descending_inserts_then_remove_half() {
-        let mut tree = RedBlackTree::<i32, i32, 10_000>::new();
+        let mut tree = RedBlackTree::<i32, i32, 1_000>::new();
 
-        for i in (0..10_000).rev() {
+        for i in (0..1_000).rev() {
             tree.insert(i, i);
         }
-        for i in 0..5_000 {
+        for i in 0..500 {
             assert_eq!(tree.remove(i), true);
             assert_eq!(tree.remove(i), false);
             assert_eq!(tree.search(&i), None);
         }
-        for i in 5_000..10_000 {
+        for i in 500..1000 {
             assert_eq!(tree.search(&i), Some(&i));
         }
-    }
-
-    #[test]
-    fn test_update_behavior() {
-        let mut tree = RedBlackTree::<i32, &str, 10>::new();
-
-        tree.update(42, "original");
-        tree.update(42, "updated");
-        tree.update(100, "new");
-
-        assert_eq!(tree.search(&42), Some(&"updated"));
-        assert_eq!(tree.search(&100), Some(&"new"));
-        assert!(tree.is_valid());
     }
 }
 

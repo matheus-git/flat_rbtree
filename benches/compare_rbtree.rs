@@ -111,10 +111,10 @@ criterion_group!(
     name = benches;
     config = Criterion::default();
     targets =
-        //bench_insert_custom,
-        //bench_insert_lib,
-        //bench_remove_custom,
-        //bench_remove_lib,
+        bench_insert_custom,
+        bench_insert_lib,
+        bench_remove_custom,
+        bench_remove_lib,
         bench_search_custom,
         bench_search_lib,
 );

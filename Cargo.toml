@@ -23,3 +23,7 @@ debug = false
 [[bench]]
 name = "compare_rbtree"
 harness = false
+
+[features]
+default = []
+expanded = []
