@@ -1,5 +1,6 @@
 #![allow(warnings)]
 #![no_std]
+#![cfg_attr(docsrs, doc(cfg_hide(feature = "default")))]
 
 //! A fast, index-based Red-Black Tree with no heap allocations.
 //!
@@ -730,7 +731,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
         }
     }
 
-    /// Returns an iterator over the entries in the range [`start`, `end`),
+    /// Returns an iterator over the entries in the range [`start`, `end`],
     pub fn range_iter(&self, start: &K, end: &K) -> RedBlackTreeIter<'_, K, V, N> {
         if start >= end {
             return RedBlackTreeIter {
@@ -837,6 +838,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     }
 
     #[cfg(feature = "expanded")]
+    #[cfg_attr(feature = "expanded", doc(cfg(feature = "expanded")))]
     /// Returns the number of keys less than the given `key`.
     pub fn rank(&self, key: &K) -> usize {
         let mut rank = 0;
@@ -861,6 +863,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     }
 
     #[cfg(feature = "expanded")]
+    #[cfg_attr(feature = "expanded", doc(cfg(feature = "expanded")))]
     /// Returns a reference to the key with the given `k`-th smallest rank (0-based).
     pub fn select(&self, mut k: usize) -> Option<&K> {
         let mut current = self.root;
@@ -887,6 +890,7 @@ impl<K: Ord, V, const N: usize> RedBlackTree<K,V,N> {
     }
 
     #[cfg(feature = "expanded")]
+    #[cfg_attr(feature = "expanded", doc(cfg(feature = "expanded")))]
     /// Returns the number of elements in the range [`start`, `end`].
     pub fn range_count(&self, start: &K, end: &K) -> usize {
         if start >= end {
