@@ -44,9 +44,9 @@ if !tree.contains_key(&20) {
 }
 ```
 
-## Benchmark: flat_rbtree vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
+## Benchmark: `flat_rbtree` vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
 
-| Operation | flat_rbtree | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
+| Operation | `flat_rbtree` | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
 |-----------|----------------|---------------|
 | **Insert** | 1.14 ms   | 1.34 ms  | 
 | **Remove** | 2.12 ns        | 354 ps       | 
