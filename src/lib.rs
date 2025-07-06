@@ -53,14 +53,16 @@ enum Color {
 
 #[derive(Debug)]
 struct Node<K, V> {
-    key: K,
-    value: V,
-    color: Color,
     parent: usize,
     left: usize,
     right: usize,
+    
     #[cfg(feature = "expanded")]
-    size: usize
+    size: usize,
+
+    key: K,
+    value: V,
+    color: Color,
 }
 
 /// An iterator over the entries of a `RedBlackTree`.
