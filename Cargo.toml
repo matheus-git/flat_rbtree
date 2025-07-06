@@ -24,6 +24,10 @@ debug = false
 name = "compare_rbtree"
 harness = false
 
+[[bench]]
+name = "compare_btree"
+harness = false
+
 [features]
 default = []
 expanded = []
