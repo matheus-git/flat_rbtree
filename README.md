@@ -46,10 +46,10 @@ if !tree.contains_key(&20) {
 
 ## Benchmark: `flat_rbtree` vs [rbtree](https://docs.rs/rbtree/latest/rbtree/) (10,000 operations)
 
-| Operation | `flat_rbtree` | [rbtree](https://docs.rs/rbtree/latest/rbtree/) |
+| Operation | `flat_rbtree` | `rbtree` |
 |-----------|----------------|---------------|
 | **Insert** | 1.14 ms   | 1.34 ms  | 
-| **Remove** | 2.12 ns        | 354 ps       | 
+| **Remove** | 2.12 ns        | 0.354 ns       | 
 | **Search** | 655 µs         | 514 µs       | 
 
 ## Benchmark: `flat_rbtree` vs [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) (10,000 operations)
@@ -57,7 +57,7 @@ if !tree.contains_key(&20) {
 | Operation | `flat_rbtree`          | `BTreeMap`             |
 |-----------|------------------------|-------------------------|
 | **Insert** | 1.14 ms  | 0.89 ms  |
-| **Remove** | 2.12 ns              | 18.9 µs                 |
+| **Remove** | 2.12 ns              |  18,90 ns                 |
 | **Search** | 702 µs                 | 524 µs                  |
 
 
