@@ -49,7 +49,7 @@ if !tree.contains_key(&20) {
 | Operation | `flat_rbtree` | `rbtree` |
 |-----------|----------------|---------------|
 | **Insert** | 1.14 ms   | 1.34 ms  | 
-| **Remove** | 2.12 ns        | 0.354 ns       | 
+| **Remove** | 2.12 ns        | 0.35 ns       | 
 | **Search** | 655 µs         | 514 µs       | 
 
 ## Benchmark: `flat_rbtree` vs [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) (10,000 operations)
